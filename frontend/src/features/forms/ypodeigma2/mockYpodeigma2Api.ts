@@ -15,6 +15,17 @@ function createMockSectionConfig(): Ypodeigma2SectionConfig {
         { id: 'ale-104', code: '104', label: 'ΑΛΕ 104', displayOrder: 4 },
       ],
     },
+    {
+      id: '338m',
+      label: '338μ',
+      displayOrder: 2,
+      ales: [
+        { id: 'ale-201', code: '101', label: 'ΑΛΕ 101', displayOrder: 1 },
+        { id: 'ale-202', code: '102', label: 'ΑΛΕ 102', displayOrder: 2 },
+        { id: 'ale-203', code: '103', label: 'ΑΛΕ 103', displayOrder: 3 },
+        { id: 'ale-204', code: '104', label: 'ΑΛΕ 104', displayOrder: 4 },
+      ],
+    },
   ];
 
   const rows = [
@@ -29,6 +40,10 @@ function createMockSectionConfig(): Ypodeigma2SectionConfig {
         [getAmountKey('337m', 'ale-102')]: null,
         [getAmountKey('337m', 'ale-103')]: null,
         [getAmountKey('337m', 'ale-104')]: null,
+        [getAmountKey('338m', 'ale-201')]: null,
+        [getAmountKey('338m', 'ale-202')]: null,
+        [getAmountKey('338m', 'ale-203')]: null,
+        [getAmountKey('338m', 'ale-204')]: null,
       },
     },
     {
@@ -42,6 +57,10 @@ function createMockSectionConfig(): Ypodeigma2SectionConfig {
         [getAmountKey('337m', 'ale-102')]: 750,
         [getAmountKey('337m', 'ale-103')]: 260,
         [getAmountKey('337m', 'ale-104')]: null,
+        [getAmountKey('338m', 'ale-201')]: 120,
+        [getAmountKey('338m', 'ale-202')]: null,
+        [getAmountKey('338m', 'ale-203')]: 300,
+        [getAmountKey('338m', 'ale-204')]: 90,
       },
     },
     {
@@ -55,6 +74,10 @@ function createMockSectionConfig(): Ypodeigma2SectionConfig {
         [getAmountKey('337m', 'ale-102')]: 180,
         [getAmountKey('337m', 'ale-103')]: 360,
         [getAmountKey('337m', 'ale-104')]: 500,
+        [getAmountKey('338m', 'ale-201')]: null,
+        [getAmountKey('338m', 'ale-202')]: 50,
+        [getAmountKey('338m', 'ale-203')]: 80,
+        [getAmountKey('338m', 'ale-204')]: 40,
       },
     },
   ];

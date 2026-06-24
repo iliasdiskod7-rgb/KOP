@@ -126,8 +126,6 @@ export default function Ypodeigma2Form() {
     );
   };
 
-  
-
   const currentMoira = section.moires[currentMoiraIndex];
   const currentMoires = currentMoira ? [currentMoira] : [];
   const visibleMoires = step === 'moira-entry' ? currentMoires : section.moires;
@@ -149,7 +147,10 @@ export default function Ypodeigma2Form() {
 
         <div className="overflow-hidden rounded-xl border border-slate-300 bg-slate-50">
           {step === 'moira-entry' ? (
-            <table className="w-full table-fixed border-collapse text-[11px] text-slate-800" style={{ gridTemplateColumns }}>
+            <table
+              className="w-full table-fixed border-collapse text-[11px] text-slate-800"
+              style={{ gridTemplateColumns }}
+            >
               <colgroup>
                 <col className="w-24" />
                 {ANALYSIS_COLUMNS.map((column) => (
@@ -165,7 +166,7 @@ export default function Ypodeigma2Form() {
               <thead>
                 <tr>
                   <th
-                    colSpan={9 + visibleMoires.reduce((c, m) => c + m.ales.length, 0)}
+                    colSpan={8 + visibleMoires.reduce((c, m) => c + m.ales.length, 0)}
                     className="border border-slate-400 bg-slate-200 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide"
                   >
                     ΥΠΟΔΕΙΓΜΑ 2
@@ -173,7 +174,7 @@ export default function Ypodeigma2Form() {
                 </tr>
                 <tr>
                   <th
-                    colSpan={9 + visibleMoires.reduce((c, m) => c + m.ales.length, 0)}
+                    colSpan={8 + visibleMoires.reduce((c, m) => c + m.ales.length, 0)}
                     className="border border-slate-400 bg-white px-4 py-3 text-center font-bold uppercase tracking-wide"
                   >
                     {section.sectionTitle}
@@ -193,13 +194,10 @@ export default function Ypodeigma2Form() {
                     ΤΙΤΛΟΣ ΣΤΟΙΧΕΙΟΥ ΚΟΣΤΟΥΣ
                   </th>
                   <th
-                    colSpan={visibleMoires.reduce((c, m) => c + m.ales.length, 0)}
+                    colSpan={visibleMoires.reduce((c, m) => c + m.ales.length, 0) + 1}
                     className="border border-slate-400 bg-white px-3 py-2 text-center font-bold"
                   >
                     Κόστος Οδοιπορικών Μετασταθμεύσεων
-                  </th>
-                  <th rowSpan={3} className="border border-slate-400 bg-orange-100 px-3 py-2 text-center font-bold">
-                    ΣΥΝ
                   </th>
                 </tr>
                 <tr>
@@ -212,10 +210,10 @@ export default function Ypodeigma2Form() {
                       {column}
                     </th>
                   ))}
-                  {visibleMoires.map((moira) => (
+                  {visibleMoires.map((moira, index) => (
                     <th
                       key={`moira-${moira.id}`}
-                      colSpan={moira.ales.length}
+                      colSpan={moira.ales.length + (index === visibleMoires.length - 1 ? 1 : 0)}
                       className="border border-slate-400 bg-slate-50 px-3 py-2 text-center font-bold uppercase"
                     >
                       {moira.label}
@@ -232,6 +230,9 @@ export default function Ypodeigma2Form() {
                       ΑΛΕ
                     </th>
                   ))}
+                  <th rowSpan={2} className="border border-slate-400 bg-orange-100 px-3 py-2 text-center font-bold">
+                    ΣΥΝ
+                  </th>
                 </tr>
                 <tr>
                   {visibleMoires.flatMap((moira) =>
@@ -261,7 +262,9 @@ export default function Ypodeigma2Form() {
                       </td>
                     ))}
 
-                    <td className="border border-slate-300 px-2 py-2 text-[11px] leading-tight">{row.costElementTitle}</td>
+                    <td className="border border-slate-300 px-2 py-2 text-[11px] leading-tight">
+                      {row.costElementTitle}
+                    </td>
 
                     {visibleMoires.flatMap((moira) =>
                       moira.ales.map((ale) => {
@@ -276,7 +279,9 @@ export default function Ypodeigma2Form() {
                             <input
                               type="number"
                               value={value ?? ''}
-                              onChange={(event) => handleAmountChange(row.id, amountKey, event.target.value)}
+                              onChange={(event) =>
+                                handleAmountChange(row.id, amountKey, event.target.value)
+                              }
                               className="w-full appearance-none bg-transparent text-right text-[11px] outline-none focus:bg-cyan-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                           </td>
@@ -335,7 +340,7 @@ export default function Ypodeigma2Form() {
                   ),
                 };
 
-                // Пока что απλά log για έλεγχο.
+                // Προς το παρόν απλό log για έλεγχο.
                 // Στο μέλλον θα κάνουμε POST στο backend.
                 // eslint-disable-next-line no-console
                 console.log('Save payload', payload);
@@ -365,7 +370,9 @@ export default function Ypodeigma2Form() {
               {currentMoiraIndex < section.moires.length - 1 ? (
                 <button
                   type="button"
-                  onClick={() => setCurrentMoiraIndex((i) => Math.min(section.moires.length - 1, i + 1))}
+                  onClick={() =>
+                    setCurrentMoiraIndex((i) => Math.min(section.moires.length - 1, i + 1))
+                  }
                   className="rounded bg-sky-600 px-3 py-2 text-sm text-white"
                 >
                   Επόμενη Μοίρα
