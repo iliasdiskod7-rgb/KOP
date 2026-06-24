@@ -1,26 +1,58 @@
-import { useState } from 'react';
-import Login from './Login';
-import Footer from './Footer';
-import Dashboard from './Dashboard';
+import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import Footer from './components/Footer';
+import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
+
+const STORAGE_KEY = 'kop-auth-user';
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState('');
+  const [user, setUser] = useState(() => localStorage.getItem(STORAGE_KEY) ?? '');
+  const isLoggedIn = user.trim() !== '';
+
+  useEffect(() => {
+    if (user.trim()) {
+      localStorage.setItem(STORAGE_KEY, user);
+      return;
+    }
+
+    localStorage.removeItem(STORAGE_KEY);
+  }, [user]);
+
   const handleLoginSuccess = (username: string) => {
     setUser(username);
-    setIsLoggedIn(true);
   };
+
+  const handleLogout = () => {
+    setUser('');
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans">
-      
-      {/* Conditional Rendering: Αν είναι logged in δείξε το Dashboard, αλλιώς το Login */}
-      {isLoggedIn ? (
-        <Dashboard username={user} />
-      ) : (
-        <Login onLoginSuccess={handleLoginSuccess} />
-      )}
-      <Footer />
+      <Routes>
+        <Route
+          path="/"
+          element={
+            isLoggedIn ? (
+              <Navigate to="/dashboard/ypologismos" replace />
+            ) : (
+              <Login onLoginSuccess={handleLoginSuccess} />
+            )
+          }
+        />
+        <Route
+          path="/dashboard/*"
+          element={
+            isLoggedIn ? (
+              <Dashboard username={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+      </Routes>
 
+      <Footer />
     </div>
   );
 }
