@@ -25,10 +25,10 @@ function createMockSectionConfig(): Ypodeigma2SectionConfig {
       analysisLevel: 1,
       displayOrder: 1,
       values: {
-        [getAmountKey('337m', 'ale-101')]: 1200,
-        [getAmountKey('337m', 'ale-102')]: 980,
+        [getAmountKey('337m', 'ale-101')]: null,
+        [getAmountKey('337m', 'ale-102')]: null,
         [getAmountKey('337m', 'ale-103')]: null,
-        [getAmountKey('337m', 'ale-104')]: 610,
+        [getAmountKey('337m', 'ale-104')]: null,
       },
     },
     {

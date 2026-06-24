@@ -5,6 +5,7 @@ import {
   calculateRowTotal,
   getAmountKey,
 } from './helpers';
+import Ypodeigma2ReviewTable from './Ypodeigma2ReviewTable';
 import { fetchYpodeigma2Section } from './mockYpodeigma2Api';
 import type { Ypodeigma2Moira, Ypodeigma2Row, Ypodeigma2SectionConfig } from './types';
 
@@ -15,6 +16,17 @@ function formatAmount(value: number) {
     maximumFractionDigits: 2,
     minimumFractionDigits: 0,
   }).format(value);
+}
+
+function parseAmount(rawValue: string): number | null {
+  if (rawValue.trim() === '') {
+    return null;
+  }
+
+  const normalizedValue = rawValue.replace(',', '.');
+  const parsedValue = Number(normalizedValue);
+
+  return Number.isFinite(parsedValue) ? parsedValue : null;
 }
 
 function sortMoires(moires: Ypodeigma2Moira[]) {
@@ -29,6 +41,8 @@ export default function Ypodeigma2Form() {
   const [section, setSection] = useState<Ypodeigma2SectionConfig | null>(null);
   // Τοπικό editable αντίγραφο των rows του backend μέχρι να συνδεθούν τα save/load endpoints.
   const [rows, setRows] = useState<Ypodeigma2Row[]>([]);
+  const [currentMoiraIndex, setCurrentMoiraIndex] = useState<number>(0);
+  const [step, setStep] = useState<'moira-entry' | 'review'>('moira-entry');
 
   useEffect(() => {
     let mounted = true;
@@ -69,17 +83,21 @@ export default function Ypodeigma2Form() {
       return '';
     }
 
+    const currentMoira = section.moires[currentMoiraIndex];
+    const currentMoires = currentMoira ? [currentMoira] : [];
+    const visibleMoires = step === 'moira-entry' ? currentMoires : section.moires;
+
     const leftColumns = [
-      'minmax(7rem, 0.95fr)',
-      ...ANALYSIS_COLUMNS.map(() => 'minmax(3rem, 0.58fr)'),
-      'minmax(18rem, 2fr)',
+      'minmax(6.5rem, 0.9fr)',
+      ...ANALYSIS_COLUMNS.map(() => 'minmax(1.8rem, 0.28fr)'),
+      'minmax(14rem, 1.8fr)',
     ];
-    const amountColumns = section.moires.flatMap((moira) =>
-      moira.ales.map(() => 'minmax(7rem, 0.8fr)'),
+    const amountColumns = visibleMoires.flatMap((moira) =>
+      moira.ales.map(() => 'minmax(5.5rem, 0.7fr)'),
     );
 
-    return [...leftColumns, ...amountColumns, 'minmax(7rem, 0.85fr)'].join(' ');
-  }, [section]);
+    return [...leftColumns, ...amountColumns, 'minmax(5.75rem, 0.75fr)'].join(' ');
+  }, [section, currentMoiraIndex, step]);
 
   if (!section) {
     return (
@@ -101,14 +119,18 @@ export default function Ypodeigma2Form() {
           ...row,
           values: {
             ...row.values,
-            [amountKey]: rawValue === '' ? null : Number(rawValue),
+            [amountKey]: parseAmount(rawValue),
           },
         };
       }),
     );
   };
 
-  const grandTotal = calculateGrandTotal(rows, section.moires);
+  
+
+  const currentMoira = section.moires[currentMoiraIndex];
+  const currentMoires = currentMoira ? [currentMoira] : [];
+  const visibleMoires = step === 'moira-entry' ? currentMoires : section.moires;
 
   return (
     <section className="space-y-5">
@@ -125,178 +147,241 @@ export default function Ypodeigma2Form() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-slate-300 bg-slate-50">
-          <table className="min-w-max border-collapse text-xs text-slate-800" style={{ gridTemplateColumns }}>
-            <colgroup>
-              <col className="w-28" />
-              {ANALYSIS_COLUMNS.map((column) => (
-                <col key={`analysis-col-${column}`} className="w-12" />
-              ))}
-              <col className="w-80" />
-              {section.moires.flatMap((moira) =>
-                moira.ales.map((ale) => <col key={`${moira.id}-${ale.id}`} className="w-28" />),
-              )}
-              <col className="w-28" />
-            </colgroup>
-
-            <thead>
-              <tr>
-                <th
-                  colSpan={9 + totalAleCount}
-                  className="border border-slate-400 bg-slate-200 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide"
-                >
-                  ΥΠΟΔΕΙΓΜΑ 2
-                </th>
-              </tr>
-              <tr>
-                <th
-                  colSpan={9 + totalAleCount}
-                  className="border border-slate-400 bg-white px-4 py-3 text-center font-bold uppercase tracking-wide"
-                >
-                  {section.sectionTitle}
-                </th>
-              </tr>
-              <tr>
-                {/* Το αριστερό block είναι σταθερό, ενώ οι στήλες ποσών χτίζονται δυναμικά από τα moires[].ales. */}
-                <th rowSpan={4} className="border border-slate-400 bg-white px-3 py-2 text-center font-bold">
-                  ΚΩΔΙΚΑΣ
-                </th>
-                <th
-                  colSpan={ANALYSIS_COLUMNS.length}
-                  className="border border-slate-400 bg-white px-3 py-2 text-center font-bold"
-                >
-                  ΕΠΙΠΕΔΟ ΑΝΑΛΥΣΗΣ
-                </th>
-                <th rowSpan={4} className="border border-slate-400 bg-white px-3 py-2 text-center font-bold">
-                  ΤΙΤΛΟΣ ΣΤΟΙΧΕΙΟΥ ΚΟΣΤΟΥΣ
-                </th>
-                <th
-                  colSpan={totalAleCount + 1}
-                  className="border border-slate-400 bg-white px-3 py-2 text-center font-bold"
-                >
-                  Κόστος Οδοιπορικών Μετασταθμεύσεων
-                </th>
-              </tr>
-              <tr>
+        <div className="overflow-hidden rounded-xl border border-slate-300 bg-slate-50">
+          {step === 'moira-entry' ? (
+            <table className="w-full table-fixed border-collapse text-[11px] text-slate-800" style={{ gridTemplateColumns }}>
+              <colgroup>
+                <col className="w-24" />
                 {ANALYSIS_COLUMNS.map((column) => (
-                  <th
-                    key={`analysis-${column}`}
-                    rowSpan={3}
-                    className="border border-slate-400 bg-slate-50 px-2 py-2"
-                  >
-                    {column}
-                  </th>
+                  <col key={`analysis-col-${column}`} className="w-7" />
                 ))}
-                {section.moires.map((moira, index) => (
-                  <th
-                    key={`moira-${moira.id}`}
-                    colSpan={moira.ales.length + (index === section.moires.length - 1 ? 1 : 0)}
-                    className="border border-slate-400 bg-slate-50 px-3 py-2 text-center font-bold uppercase"
-                  >
-                    {moira.label}
-                  </th>
-                ))}
-              </tr>
-              <tr>
-                {section.moires.map((moira) => (
-                  <th
-                    key={`moira-ale-${moira.id}`}
-                    colSpan={moira.ales.length}
-                    className="border border-slate-400 bg-slate-100 px-3 py-2 text-center font-bold uppercase"
-                  >
-                    ΑΛΕ
-                  </th>
-                ))}
-                <th rowSpan={2} className="border border-slate-400 bg-orange-100 px-3 py-2 text-center font-bold">
-                  ΣΥΝ
-                </th>
-              </tr>
-              <tr>
-                {section.moires.flatMap((moira) =>
-                  moira.ales.map((ale) => (
-                    <th
-                      key={`ale-${moira.id}-${ale.id}`}
-                      className="border border-slate-400 bg-white px-3 py-2 text-center font-semibold"
-                    >
-                      {ale.code}
-                    </th>
-                  )),
+                <col className="w-56" />
+                {visibleMoires.flatMap((moira) =>
+                  moira.ales.map((ale) => <col key={`${moira.id}-${ale.id}`} className="w-20" />),
                 )}
-              </tr>
-            </thead>
+                <col className="w-20" />
+              </colgroup>
 
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="bg-white">
-                  <td className="border border-slate-300 px-3 py-2 text-center font-semibold">{row.code}</td>
-
-                  {ANALYSIS_COLUMNS.map((level) => (
-                    <td
-                      key={`${row.id}-analysis-${level}`}
-                      className="border border-slate-300 px-2 py-2 text-center text-sm font-bold text-slate-700"
+              <thead>
+                <tr>
+                  <th
+                    colSpan={9 + visibleMoires.reduce((c, m) => c + m.ales.length, 0)}
+                    className="border border-slate-400 bg-slate-200 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide"
+                  >
+                    ΥΠΟΔΕΙΓΜΑ 2
+                  </th>
+                </tr>
+                <tr>
+                  <th
+                    colSpan={9 + visibleMoires.reduce((c, m) => c + m.ales.length, 0)}
+                    className="border border-slate-400 bg-white px-4 py-3 text-center font-bold uppercase tracking-wide"
+                  >
+                    {section.sectionTitle}
+                  </th>
+                </tr>
+                <tr>
+                  <th rowSpan={4} className="border border-slate-400 bg-white px-3 py-2 text-center font-bold">
+                    ΚΩΔΙΚΑΣ
+                  </th>
+                  <th
+                    colSpan={ANALYSIS_COLUMNS.length}
+                    className="border border-slate-400 bg-white px-3 py-2 text-center font-bold"
+                  >
+                    ΕΠΙΠΕΔΟ ΑΝΑΛΥΣΗΣ
+                  </th>
+                  <th rowSpan={4} className="border border-slate-400 bg-white px-3 py-2 text-center font-bold">
+                    ΤΙΤΛΟΣ ΣΤΟΙΧΕΙΟΥ ΚΟΣΤΟΥΣ
+                  </th>
+                  <th
+                    colSpan={visibleMoires.reduce((c, m) => c + m.ales.length, 0)}
+                    className="border border-slate-400 bg-white px-3 py-2 text-center font-bold"
+                  >
+                    Κόστος Οδοιπορικών Μετασταθμεύσεων
+                  </th>
+                  <th rowSpan={3} className="border border-slate-400 bg-orange-100 px-3 py-2 text-center font-bold">
+                    ΣΥΝ
+                  </th>
+                </tr>
+                <tr>
+                  {ANALYSIS_COLUMNS.map((column) => (
+                    <th
+                      key={`analysis-${column}`}
+                      rowSpan={3}
+                      className="border border-slate-400 bg-slate-50 px-2 py-2"
                     >
-                      {row.analysisLevel === level ? 'X' : ''}
-                    </td>
+                      {column}
+                    </th>
                   ))}
+                  {visibleMoires.map((moira) => (
+                    <th
+                      key={`moira-${moira.id}`}
+                      colSpan={moira.ales.length}
+                      className="border border-slate-400 bg-slate-50 px-3 py-2 text-center font-bold uppercase"
+                    >
+                      {moira.label}
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  {visibleMoires.map((moira) => (
+                    <th
+                      key={`moira-ale-${moira.id}`}
+                      colSpan={moira.ales.length}
+                      className="border border-slate-400 bg-slate-100 px-3 py-2 text-center font-bold uppercase"
+                    >
+                      ΑΛΕ
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  {visibleMoires.flatMap((moira) =>
+                    moira.ales.map((ale) => (
+                      <th
+                        key={`ale-${moira.id}-${ale.id}`}
+                        className="border border-slate-400 bg-white px-3 py-2 text-center font-semibold"
+                      >
+                        {ale.code}
+                      </th>
+                    )),
+                  )}
+                </tr>
+              </thead>
 
-                  <td className="border border-slate-300 px-3 py-2 text-sm">{row.costElementTitle}</td>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id} className="bg-white">
+                    <td className="border border-slate-300 px-3 py-2 text-center font-semibold">{row.code}</td>
 
-                  {section.moires.flatMap((moira) =>
-                    moira.ales.map((ale) => {
-                      // Το amountKey συνδέει κάθε input με τον συνδυασμό row id + moira id + ALE id του backend.
-                      const amountKey = getAmountKey(moira.id, ale.id);
-                      const value = row.values[amountKey];
+                    {ANALYSIS_COLUMNS.map((level) => (
+                      <td
+                        key={`${row.id}-analysis-${level}`}
+                        className="border border-slate-300 px-1 py-2 text-center text-[11px] font-bold text-slate-700"
+                      >
+                        {row.analysisLevel === level ? 'X' : ''}
+                      </td>
+                    ))}
 
-                      return (
-                        <td
-                          key={`${row.id}-${amountKey}`}
-                          className="border border-slate-300 bg-white px-2 py-1.5"
-                        >
-                          <input
-                            type="number"
-                            value={value ?? ''}
-                            onChange={(event) =>
-                              handleAmountChange(row.id, amountKey, event.target.value)
-                            }
-                            className="w-full bg-transparent text-right outline-none focus:bg-cyan-50"
-                          />
-                        </td>
-                      );
-                    }),
+                    <td className="border border-slate-300 px-2 py-2 text-[11px] leading-tight">{row.costElementTitle}</td>
+
+                    {visibleMoires.flatMap((moira) =>
+                      moira.ales.map((ale) => {
+                        const amountKey = getAmountKey(moira.id, ale.id);
+                        const value = row.values[amountKey];
+
+                        return (
+                          <td
+                            key={`${row.id}-${amountKey}`}
+                            className="border border-slate-300 bg-white px-2 py-1.5"
+                          >
+                            <input
+                              type="number"
+                              value={value ?? ''}
+                              onChange={(event) => handleAmountChange(row.id, amountKey, event.target.value)}
+                              className="w-full appearance-none bg-transparent text-right text-[11px] outline-none focus:bg-cyan-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            />
+                          </td>
+                        );
+                      }),
+                    )}
+
+                    <td className="border border-slate-300 bg-orange-50 px-3 py-2 text-right font-bold text-slate-800">
+                      {formatAmount(calculateRowTotal(row, visibleMoires))}
+                    </td>
+                  </tr>
+                ))}
+
+                <tr className="bg-amber-100">
+                  <td
+                    colSpan={8}
+                    className="border border-slate-400 px-3 py-3 text-right font-bold uppercase tracking-wide"
+                  >
+                    ΣΥΝ ΣΤΗΛ
+                  </td>
+
+                  {visibleMoires.flatMap((moira) =>
+                    moira.ales.map((ale) => (
+                      <td
+                        key={`sum-${moira.id}-${ale.id}`}
+                        className="border border-slate-400 px-3 py-3 text-right font-bold"
+                      >
+                        {formatAmount(calculateAleColumnTotal(moira.id, ale.id, rows))}
+                      </td>
+                    )),
                   )}
 
-                  <td className="border border-slate-300 bg-orange-50 px-3 py-2 text-right font-bold text-slate-800">
-                    {formatAmount(calculateRowTotal(row, section.moires))}
+                  <td className="border border-slate-400 bg-orange-200 px-3 py-3 text-right font-extrabold">
+                    {formatAmount(calculateGrandTotal(rows, section.moires))}
                   </td>
                 </tr>
-              ))}
+              </tbody>
+            </table>
+          ) : (
+            <Ypodeigma2ReviewTable
+              rows={rows}
+              section={section}
+              onBack={() => setStep('moira-entry')}
+              onSave={() => {
+                const payload = {
+                  sectionId: section.sectionId,
+                  amounts: rows.flatMap((row) =>
+                    section.moires.flatMap((moira) =>
+                      moira.ales.map((ale) => ({
+                        rowId: row.id,
+                        moiraId: moira.id,
+                        aleId: ale.id,
+                        amount: row.values[getAmountKey(moira.id, ale.id)] ?? null,
+                      })),
+                    ),
+                  ),
+                };
 
-              <tr className="bg-amber-100">
-                <td
-                  colSpan={8}
-                  className="border border-slate-400 px-3 py-3 text-right font-bold uppercase tracking-wide"
-                >
-                  ΣΥΝ ΣΤΗΛ
-                </td>
-
-                {section.moires.flatMap((moira) =>
-                  moira.ales.map((ale) => (
-                    <td
-                      key={`sum-${moira.id}-${ale.id}`}
-                      className="border border-slate-400 px-3 py-3 text-right font-bold"
-                    >
-                      {formatAmount(calculateAleColumnTotal(moira.id, ale.id, rows))}
-                    </td>
-                  )),
-                )}
-
-                <td className="border border-slate-400 bg-orange-200 px-3 py-3 text-right font-extrabold">
-                  {formatAmount(grandTotal)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                // Пока что απλά log για έλεγχο.
+                // Στο μέλλον θα κάνουμε POST στο backend.
+                // eslint-disable-next-line no-console
+                console.log('Save payload', payload);
+              }}
+            />
+          )}
         </div>
+
+        {step === 'moira-entry' && (
+          <div className="mt-4 flex items-center justify-between">
+            <div>
+              <button
+                type="button"
+                onClick={() => setCurrentMoiraIndex((i) => Math.max(0, i - 1))}
+                disabled={currentMoiraIndex === 0}
+                className="rounded border px-3 py-2 text-sm"
+              >
+                Προηγούμενη Μοίρα
+              </button>
+            </div>
+
+            <div className="text-sm font-medium">
+              Μοίρα {currentMoiraIndex + 1} από {section.moires.length}: {currentMoira?.label}
+            </div>
+
+            <div>
+              {currentMoiraIndex < section.moires.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrentMoiraIndex((i) => Math.min(section.moires.length - 1, i + 1))}
+                  className="rounded bg-sky-600 px-3 py-2 text-sm text-white"
+                >
+                  Επόμενη Μοίρα
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setStep('review')}
+                  className="rounded bg-amber-600 px-3 py-2 text-sm text-white"
+                >
+                  Συνέχεια στον τελικό πίνακα
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
           <p>
