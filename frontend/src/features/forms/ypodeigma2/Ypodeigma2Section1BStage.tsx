@@ -1,5 +1,5 @@
 import type { FC } from 'react';
-import { getAmountKey } from './helpers';
+import { formatTitleCase, getAmountKey } from './helpers';
 import type { Ypodeigma2Ale, Ypodeigma2Moira, Ypodeigma2Row, Ypodeigma2SectionConfig } from './types';
 
 function formatAmount(value: number) {
@@ -44,34 +44,39 @@ function calculateReviewAleColumnTotal(
 
 type Props = {
   rows: Ypodeigma2Row[];
-  section: Ypodeigma2SectionConfig;
+  sectionId: string;
+  sectionTitle: string;
+  sharedConfig: Pick<Ypodeigma2SectionConfig, 'analysisLevels' | 'moires'>;
   onBack: () => void;
   onContinue: () => void;
 };
 
-const Ypodeigma2FinalTableStage: FC<Props> = ({ rows, section, onBack, onContinue }) => {
-  const reviewAleColumns = buildReviewAleColumns(section.moires);
+const Ypodeigma2Section1BStage: FC<Props> = ({
+  rows,
+  sectionId,
+  sectionTitle,
+  sharedConfig,
+  onBack,
+  onContinue,
+}) => {
+  const reviewAleColumns = buildReviewAleColumns(sharedConfig.moires);
   const grandTotal = rows.reduce(
-    (total, row) => total + calculateReviewRowTotal(row, reviewAleColumns, section.moires),
+    (total, row) => total + calculateReviewRowTotal(row, reviewAleColumns, sharedConfig.moires),
     0,
   );
+  const analysisLevels = [...sharedConfig.analysisLevels].sort(
+    (left, right) => left.displayOrder - right.displayOrder,
+  );
+  const leftColumnCount = 2 + analysisLevels.length;
 
   return (
     <div className="space-y-4 p-4">
-      <div>
-        <h2 className="mb-2 text-lg font-bold">Ενδιάμεσος Πίνακας Υποδείγματος 2</h2>
-        <p className="text-sm text-slate-600">
-          Αυτό είναι το βήμα πριν από την τελική προεπισκόπηση. Εδώ θα προστεθούν αργότερα και τα
-          επιπλέον text πεδία/τίτλοι στοιχείων κόστους.
-        </p>
-      </div>
-
       <div className="overflow-hidden rounded-xl border border-slate-300 bg-slate-50">
         <table className="w-full table-fixed border-collapse text-[11px] text-slate-800">
           <colgroup>
             <col className="w-24" />
-            {Array.from({ length: 6 }).map((_, index) => (
-              <col key={`analysis-col-${index + 1}`} className="w-7" />
+            {analysisLevels.map((level) => (
+              <col key={`analysis-col-${level.id}`} className="w-7" />
             ))}
             <col className="w-56" />
             {reviewAleColumns.map((ale) => (
@@ -83,25 +88,28 @@ const Ypodeigma2FinalTableStage: FC<Props> = ({ rows, section, onBack, onContinu
           <thead>
             <tr>
               <th
-                colSpan={8 + reviewAleColumns.length}
-                className="border border-slate-400 bg-slate-200 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide"
+                colSpan={leftColumnCount + reviewAleColumns.length + 1}
+                className="border border-slate-400 bg-slate-200 px-4 py-3 text-center text-sm font-bold tracking-wide"
               >
-                ΕΝΔΙΑΜΕΣΟΣ ΠΙΝΑΚΑΣ
+                ΥΠΟΔΕΙΓΜΑ 2- 1Β
               </th>
             </tr>
             <tr>
               <th
-                colSpan={8 + reviewAleColumns.length}
-                className="border border-slate-400 bg-white px-4 py-3 text-center font-bold uppercase tracking-wide"
+                colSpan={leftColumnCount + reviewAleColumns.length + 1}
+                className="border border-slate-400 bg-white px-4 py-3 text-center font-bold tracking-wide"
               >
-                {section.sectionTitle}
+                {formatTitleCase(sectionTitle)}
               </th>
             </tr>
             <tr>
               <th rowSpan={4} className="border border-slate-400 bg-white px-3 py-2 text-center font-bold">
                 ΚΩΔΙΚΑΣ
               </th>
-              <th colSpan={6} className="border border-slate-400 bg-white px-3 py-2 text-center font-bold">
+              <th
+                colSpan={analysisLevels.length}
+                className="border border-slate-400 bg-white px-3 py-2 text-center font-bold"
+              >
                 ΕΠΙΠΕΔΟ ΑΝΑΛΥΣΗΣ
               </th>
               <th rowSpan={4} className="border border-slate-400 bg-white px-3 py-2 text-center font-bold">
@@ -115,13 +123,13 @@ const Ypodeigma2FinalTableStage: FC<Props> = ({ rows, section, onBack, onContinu
               </th>
             </tr>
             <tr>
-              {Array.from({ length: 6 }).map((_, index) => (
+              {analysisLevels.map((level) => (
                 <th
-                  key={`analysis-${index + 1}`}
+                  key={`analysis-${level.id}`}
                   rowSpan={3}
                   className="border border-slate-400 bg-slate-50 px-2 py-2"
                 >
-                  {index + 1}
+                  {level.label}
                 </th>
               ))}
               <th
@@ -153,12 +161,12 @@ const Ypodeigma2FinalTableStage: FC<Props> = ({ rows, section, onBack, onContinu
               <tr key={row.id} className="bg-white">
                 <td className="border border-slate-300 px-3 py-2 text-center font-semibold">{row.code}</td>
 
-                {Array.from({ length: 6 }).map((_, index) => (
+                {analysisLevels.map((level) => (
                   <td
-                    key={`${row.id}-analysis-${index + 1}`}
+                    key={`${row.id}-analysis-${level.id}`}
                     className="border border-slate-300 px-1 py-2 text-center text-[11px] font-bold text-slate-700"
                   >
-                    {row.analysisLevel === index + 1 ? 'X' : ''}
+                    {row.analysisLevel === level.value ? 'X' : ''}
                   </td>
                 ))}
 
@@ -171,22 +179,22 @@ const Ypodeigma2FinalTableStage: FC<Props> = ({ rows, section, onBack, onContinu
                     key={`${row.id}-stage-${ale.id}`}
                     className="border border-slate-300 px-2 py-1.5 text-right"
                   >
-                    {formatAmount(calculateReviewCellValue(row, ale, section.moires))}
+                    {formatAmount(calculateReviewCellValue(row, ale, sharedConfig.moires))}
                   </td>
                 ))}
 
                 <td className="border border-slate-300 bg-orange-50 px-3 py-2 text-right font-bold text-slate-800">
-                  {formatAmount(calculateReviewRowTotal(row, reviewAleColumns, section.moires))}
+                  {formatAmount(calculateReviewRowTotal(row, reviewAleColumns, sharedConfig.moires))}
                 </td>
               </tr>
             ))}
 
             <tr className="bg-amber-100">
               <td
-                colSpan={8}
+                colSpan={leftColumnCount}
                 className="border border-slate-400 px-3 py-3 text-right font-bold uppercase tracking-wide"
               >
-                ΣΥΝ ΣΤΗΛ
+                ΣΥΝΟΛΟ {sectionId}
               </td>
 
               {reviewAleColumns.map((ale) => (
@@ -194,7 +202,7 @@ const Ypodeigma2FinalTableStage: FC<Props> = ({ rows, section, onBack, onContinu
                   key={`stage-sum-${ale.id}`}
                   className="border border-slate-400 px-3 py-3 text-right font-bold"
                 >
-                  {formatAmount(calculateReviewAleColumnTotal(ale, rows, section.moires))}
+                  {formatAmount(calculateReviewAleColumnTotal(ale, rows, sharedConfig.moires))}
                 </td>
               ))}
 
@@ -217,13 +225,13 @@ const Ypodeigma2FinalTableStage: FC<Props> = ({ rows, section, onBack, onContinu
         <button
           type="button"
           onClick={onContinue}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-1"
+          className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-amber-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1"
         >
-          Αποθήκευση
+          Συνέχεια στο συγκεντρωτικό
         </button>
       </div>
     </div>
   );
 };
 
-export default Ypodeigma2FinalTableStage;
+export default Ypodeigma2Section1BStage;

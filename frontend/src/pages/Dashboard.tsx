@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DynamicForm from '../features/forms/DynamicForm';
+import MySubmissions from './MySubmissions';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -32,11 +33,18 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
 
   const activeTab = location.pathname.startsWith('/dashboard/ypodeigma/')
     ? `ypodeigma${location.pathname.split('/').at(-1) ?? ''}`
+    : location.pathname.startsWith('/dashboard/my-submissions')
+      ? 'my-submissions'
     : 'ypologismos';
 
   const handleTabChange = (tab: string) => {
     if (tab === 'ypologismos') {
       navigate('/dashboard/ypologismos');
+      return;
+    }
+
+    if (tab === 'my-submissions') {
+      navigate('/dashboard/my-submissions');
       return;
     }
 
@@ -57,6 +65,7 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
         <Routes>
           <Route index element={<Navigate to="ypologismos" replace />} />
           <Route path="ypologismos" element={<DashboardHome />} />
+          <Route path="my-submissions" element={<MySubmissions />} />
           <Route path="ypodeigma/:id" element={<DashboardFormRoute />} />
           <Route path="*" element={<Navigate to="ypologismos" replace />} />
         </Routes>

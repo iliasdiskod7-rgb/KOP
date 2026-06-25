@@ -1,16 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   calculateAleColumnTotal,
   calculateGrandTotal,
   calculateRowTotal,
+  formatTitleCase,
   getAmountKey,
 } from './helpers';
-import Ypodeigma2FinalTableStage from './Ypodeigma2FinalTableStage';
-import Ypodeigma2ReviewTable from './Ypodeigma2ReviewTable';
 import { fetchYpodeigma2Section } from './mockYpodeigma2Api';
-import type { Ypodeigma2Moira, Ypodeigma2Row, Ypodeigma2SectionConfig } from './types';
-
-const ANALYSIS_COLUMNS = [1, 2, 3, 4, 5, 6];
+import Ypodeigma2ReviewTable from './Ypodeigma2ReviewTable';
+import Ypodeigma2Section1BStage from './Ypodeigma2Section1BStage';
+import { saveYpodeigma2Submission } from './submissionStorage';
+import type {
+  Ypodeigma2AnalysisLevel,
+  Ypodeigma2Moira,
+  Ypodeigma2Row,
+  Ypodeigma2SectionConfig,
+} from './types';
 
 function formatAmount(value: number) {
   return new Intl.NumberFormat('el-GR', {
@@ -38,17 +44,23 @@ function sortRows(rows: Ypodeigma2Row[]) {
   return [...rows].sort((left, right) => left.displayOrder - right.displayOrder);
 }
 
+function sortAnalysisLevels(levels: Ypodeigma2AnalysisLevel[]) {
+  return [...levels].sort((left, right) => left.displayOrder - right.displayOrder);
+}
+
+type FormStep = 'moira-entry' | 'section-1b' | 'review';
+
 export default function Ypodeigma2Form() {
+  const navigate = useNavigate();
   const [section, setSection] = useState<Ypodeigma2SectionConfig | null>(null);
-  // Τοπικό editable αντίγραφο των rows του backend μέχρι να συνδεθούν τα save/load endpoints.
   const [rows, setRows] = useState<Ypodeigma2Row[]>([]);
+  const [section1BRows, setSection1BRows] = useState<Ypodeigma2Row[]>([]);
   const [currentMoiraIndex, setCurrentMoiraIndex] = useState<number>(0);
-  const [step, setStep] = useState<'moira-entry' | 'final-table' | 'review'>('moira-entry');
+  const [step, setStep] = useState<FormStep>('moira-entry');
 
   useEffect(() => {
     let mounted = true;
 
-    // Το section id αργότερα πιθανότατα θα έρχεται από backend metadata ή από route params.
     fetchYpodeigma2Section('1Α').then((config) => {
       if (!mounted) {
         return;
@@ -60,13 +72,20 @@ export default function Ypodeigma2Form() {
       }));
 
       const sortedRows = sortRows(config.rows);
+      const sortedAnalysisLevels = sortAnalysisLevels(config.analysisLevels);
 
       setSection({
         ...config,
+        analysisLevels: sortedAnalysisLevels,
         moires: sortedMoires,
         rows: sortedRows,
+        section1B: {
+          ...config.section1B,
+          rows: sortRows(config.section1B.rows),
+        },
       });
       setRows(sortedRows);
+      setSection1BRows(sortRows(config.section1B.rows));
     });
 
     return () => {
@@ -85,12 +104,11 @@ export default function Ypodeigma2Form() {
     }
 
     const currentMoira = section.moires[currentMoiraIndex];
-    const currentMoires = currentMoira ? [currentMoira] : [];
-    const visibleMoires = currentMoires;
+    const visibleMoires = currentMoira ? [currentMoira] : [];
 
     const leftColumns = [
       'minmax(6.5rem, 0.9fr)',
-      ...ANALYSIS_COLUMNS.map(() => 'minmax(1.8rem, 0.28fr)'),
+      ...section.analysisLevels.map(() => 'minmax(1.8rem, 0.28fr)'),
       'minmax(14rem, 1.8fr)',
     ];
     const amountColumns = visibleMoires.flatMap((moira) =>
@@ -109,7 +127,6 @@ export default function Ypodeigma2Form() {
   }
 
   const handleAmountChange = (rowId: Ypodeigma2Row['id'], amountKey: string, rawValue: string) => {
-    // Όταν υλοποιηθεί το save, αυτό είναι το state shape που θα πρέπει να σταλεί πίσω στο backend.
     setRows((currentRows) =>
       currentRows.map((row) => {
         if (row.id !== rowId) {
@@ -129,6 +146,9 @@ export default function Ypodeigma2Form() {
 
   const currentMoira = section.moires[currentMoiraIndex];
   const currentMoires = currentMoira ? [currentMoira] : [];
+  const analysisLevels = section.analysisLevels;
+  const leftColumnCount = 2 + analysisLevels.length;
+  const currentMoiraTitle = currentMoira?.label ?? '';
 
   return (
     <section className="space-y-5">
@@ -136,7 +156,7 @@ export default function Ypodeigma2Form() {
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Υπόδειγμα 2</h1>
-            <p className="text-sm text-slate-600">{section.sectionTitle}</p>
+            <p className="text-sm text-slate-600">{formatTitleCase(section.sectionTitle)}</p>
           </div>
           <div className="rounded-xl bg-slate-100 px-4 py-3 text-right text-xs font-semibold text-slate-600">
             <div>Μοίρες / Μονάδες: {section.moires.length}</div>
@@ -153,8 +173,8 @@ export default function Ypodeigma2Form() {
             >
               <colgroup>
                 <col className="w-24" />
-                {ANALYSIS_COLUMNS.map((column) => (
-                  <col key={`analysis-col-${column}`} className="w-7" />
+                {analysisLevels.map((level) => (
+                  <col key={`analysis-col-${level.id}`} className="w-7" />
                 ))}
                 <col className="w-56" />
                 {currentMoires.flatMap((moira) =>
@@ -166,18 +186,22 @@ export default function Ypodeigma2Form() {
               <thead>
                 <tr>
                   <th
-                    colSpan={8 + currentMoires.reduce((c, m) => c + m.ales.length, 0)}
+                    colSpan={
+                      leftColumnCount + currentMoires.reduce((count, moira) => count + moira.ales.length, 0) + 1
+                    }
                     className="border border-slate-400 bg-slate-200 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide"
                   >
-                    ΥΠΟΔΕΙΓΜΑ 2
+                    ΥΠΟΔΕΙΓΜΑ 2 - 1Α
                   </th>
                 </tr>
                 <tr>
                   <th
-                    colSpan={8 + currentMoires.reduce((c, m) => c + m.ales.length, 0)}
-                    className="border border-slate-400 bg-white px-4 py-3 text-center font-bold uppercase tracking-wide"
+                    colSpan={
+                      leftColumnCount + currentMoires.reduce((count, moira) => count + moira.ales.length, 0) + 1
+                    }
+                    className="border border-slate-400 bg-white px-4 py-3 text-center font-bold tracking-wide"
                   >
-                    {section.sectionTitle}
+                    {formatTitleCase(section.sectionTitle)}
                   </th>
                 </tr>
                 <tr>
@@ -185,7 +209,7 @@ export default function Ypodeigma2Form() {
                     ΚΩΔΙΚΑΣ
                   </th>
                   <th
-                    colSpan={ANALYSIS_COLUMNS.length}
+                    colSpan={analysisLevels.length}
                     className="border border-slate-400 bg-white px-3 py-2 text-center font-bold"
                   >
                     ΕΠΙΠΕΔΟ ΑΝΑΛΥΣΗΣ
@@ -194,20 +218,20 @@ export default function Ypodeigma2Form() {
                     ΤΙΤΛΟΣ ΣΤΟΙΧΕΙΟΥ ΚΟΣΤΟΥΣ
                   </th>
                   <th
-                    colSpan={currentMoires.reduce((c, m) => c + m.ales.length, 0) + 1}
+                    colSpan={currentMoires.reduce((count, moira) => count + moira.ales.length, 0) + 1}
                     className="border border-slate-400 bg-white px-3 py-2 text-center font-bold"
                   >
                     Κόστος Οδοιπορικών Μετασταθμεύσεων
                   </th>
                 </tr>
                 <tr>
-                  {ANALYSIS_COLUMNS.map((column) => (
+                  {analysisLevels.map((level) => (
                     <th
-                      key={`analysis-${column}`}
+                      key={`analysis-${level.id}`}
                       rowSpan={3}
                       className="border border-slate-400 bg-slate-50 px-2 py-2"
                     >
-                      {column}
+                      {level.label}
                     </th>
                   ))}
                   {currentMoires.map((moira, index) => (
@@ -253,12 +277,12 @@ export default function Ypodeigma2Form() {
                   <tr key={row.id} className="bg-white">
                     <td className="border border-slate-300 px-3 py-2 text-center font-semibold">{row.code}</td>
 
-                    {ANALYSIS_COLUMNS.map((level) => (
+                    {analysisLevels.map((level) => (
                       <td
-                        key={`${row.id}-analysis-${level}`}
+                        key={`${row.id}-analysis-${level.id}`}
                         className="border border-slate-300 px-1 py-2 text-center text-[11px] font-bold text-slate-700"
                       >
-                        {row.analysisLevel === level ? 'X' : ''}
+                        {row.analysisLevel === level.value ? 'X' : ''}
                       </td>
                     ))}
 
@@ -297,7 +321,7 @@ export default function Ypodeigma2Form() {
 
                 <tr className="bg-amber-100">
                   <td
-                    colSpan={8}
+                    colSpan={leftColumnCount}
                     className="border border-slate-400 px-3 py-3 text-right font-bold uppercase tracking-wide"
                   >
                     ΣΥΝ ΣΤΗΛ
@@ -315,27 +339,45 @@ export default function Ypodeigma2Form() {
                   )}
 
                   <td className="border border-slate-400 bg-orange-200 px-3 py-3 text-right font-extrabold">
-                    {formatAmount(calculateGrandTotal(rows, section.moires))}
+                    {formatAmount(calculateGrandTotal(rows, currentMoires))}
                   </td>
                 </tr>
               </tbody>
             </table>
-          ) : step === 'final-table' ? (
-            <Ypodeigma2FinalTableStage
-              rows={rows}
-              section={section}
+          ) : step === 'section-1b' ? (
+            <Ypodeigma2Section1BStage
+              rows={section1BRows}
+              sectionId={section.section1B.sectionId}
+              sectionTitle={section.section1B.sectionTitle}
+              sharedConfig={{
+                analysisLevels: section.analysisLevels,
+                moires: section.moires,
+              }}
               onBack={() => setStep('moira-entry')}
               onContinue={() => setStep('review')}
             />
           ) : (
             <Ypodeigma2ReviewTable
               rows={rows}
+              section1BRows={section1BRows}
+              section1BTitle={section.section1B.sectionTitle}
               section={section}
-              onBack={() => setStep('final-table')}
+              onBack={() => setStep('section-1b')}
               onSave={() => {
                 const payload = {
                   sectionId: section.sectionId,
-                  amounts: rows.flatMap((row) =>
+                  section1AAmounts: rows.flatMap((row) =>
+                    section.moires.flatMap((moira) =>
+                      moira.ales.map((ale) => ({
+                        rowId: row.id,
+                        moiraId: moira.id,
+                        aleId: ale.id,
+                        amount: row.values[getAmountKey(moira.id, ale.id)] ?? null,
+                      })),
+                    ),
+                  ),
+                  section1BId: section.section1B.sectionId,
+                  section1BAmounts: section1BRows.flatMap((row) =>
                     section.moires.flatMap((moira) =>
                       moira.ales.map((ale) => ({
                         rowId: row.id,
@@ -347,10 +389,23 @@ export default function Ypodeigma2Form() {
                   ),
                 };
 
-                // Προς το παρόν απλό log για έλεγχο.
-                // Στο μέλλον θα κάνουμε POST στο backend.
+                saveYpodeigma2Submission({
+                  id: crypto.randomUUID(),
+                  createdAt: new Date().toISOString(),
+                  sectionId: section.sectionId,
+                  sectionTitle: section.sectionTitle,
+                  totalAmount:
+                    calculateGrandTotal(rows, section.moires) +
+                    calculateGrandTotal(section1BRows, section.moires),
+                  moiraCount: section.moires.length,
+                  rowCount: rows.length + section1BRows.length,
+                });
+
+                // Προσωρινά κρατάμε και το payload διαθέσιμο για backend wiring.
                 // eslint-disable-next-line no-console
                 console.log('Save payload', payload);
+
+                navigate('/dashboard/my-submissions');
               }}
             />
           )}
@@ -358,51 +413,40 @@ export default function Ypodeigma2Form() {
 
         {step === 'moira-entry' && (
           <div className="mt-4 flex items-center justify-between">
-            <div>
+            <button
+              type="button"
+              onClick={() => setCurrentMoiraIndex((index) => Math.max(0, index - 1))}
+              disabled={currentMoiraIndex === 0}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-slate-400 hover:bg-slate-50 hover:shadow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:scale-100"
+            >
+              Προηγούμενη Μοίρα
+            </button>
+
+            <div className="text-sm font-medium text-slate-700">
+              Μοίρα {currentMoiraIndex + 1} από {section.moires.length}: {currentMoiraTitle}
+            </div>
+
+            {currentMoiraIndex < section.moires.length - 1 ? (
               <button
                 type="button"
-                onClick={() => setCurrentMoiraIndex((i) => Math.max(0, i - 1))}
-                disabled={currentMoiraIndex === 0}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-slate-400 hover:bg-slate-50 hover:shadow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:scale-100"
+                onClick={() =>
+                  setCurrentMoiraIndex((index) => Math.min(section.moires.length - 1, index + 1))
+                }
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-sky-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-1"
               >
-                Προηγούμενη Μοίρα
+                Επόμενη Μοίρα
               </button>
-            </div>
-
-            <div className="text-sm font-medium">
-              Μοίρα {currentMoiraIndex + 1} από {section.moires.length}: {currentMoira?.label}
-            </div>
-
-            <div>
-              {currentMoiraIndex < section.moires.length - 1 ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCurrentMoiraIndex((i) => Math.min(section.moires.length - 1, i + 1))
-                  }
-                  className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-sky-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-1"
-                >
-                  Επόμενη Μοίρα
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setStep('final-table')}
-                  className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-amber-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1"
-                >
-                  Συνέχεια στον ενδιάμεσο πίνακα
-                </button>
-              )}
-            </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setStep('section-1b')}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-amber-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1"
+              >
+                Συνέχεια στον πίνακα 1Β
+              </button>
+            )}
           </div>
         )}
-
-        <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-          <p>
-            Το schema είναι πλέον backend-driven μέσω `moires`, `ales` και `rows`. Αν αλλάξεις τα
-            `ales.length` στο mock API, ο πίνακας μεγαλώνει μόνος του χωρίς επιπλέον hardcoding.
-          </p>
-        </div>
       </div>
     </section>
   );

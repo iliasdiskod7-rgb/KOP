@@ -31,3 +31,17 @@ export function calculateAleColumnTotal(
 export function calculateGrandTotal(rows: Ypodeigma2Row[], moires: Ypodeigma2Moira[]) {
   return rows.reduce((total, row) => total + calculateRowTotal(row, moires), 0);
 }
+
+export function formatTitleCase(value: string) {
+  return value
+    .toLocaleLowerCase('el-GR')
+    .split(' ')
+    .filter((part) => part.trim().length > 0)
+    .map((part) =>
+      part
+        .split('-')
+        .map((segment) => segment.charAt(0).toLocaleUpperCase('el-GR') + segment.slice(1))
+        .join('-'),
+    )
+    .join(' ');
+}

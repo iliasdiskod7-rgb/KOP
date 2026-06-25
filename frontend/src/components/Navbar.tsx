@@ -10,51 +10,65 @@ interface NavbarProps {
   username: string;
 }
 
+function getTabButtonClass(activeTab: string, tab: string) {
+  return `relative group flex flex-col items-center font-semibold tracking-wide transition-colors duration-300 pb-1 after:content-[''] after:absolute after:left-0 after:bottom-0 after:w-full after:h-[2px] after:bg-cyan-500 after:transition-transform after:duration-300 after:origin-left ${
+    activeTab === tab
+      ? 'text-cyan-500 after:scale-x-100'
+      : 'text-black hover:text-cyan-500 after:scale-x-0 hover:after:scale-x-100'
+  }`;
+}
+
 export default function Navbar({
   activeTab,
   onLogout,
   onTabChange,
   username,
 }: NavbarProps) {
-  const tabButtonClass = `relative group flex flex-col items-center font-semibold tracking-wide transition-colors duration-300 pb-1 after:content-[''] after:absolute after:left-0 after:bottom-0 after:w-full after:h-[2px] after:bg-cyan-500 after:transition-transform after:duration-300 after:origin-left ${
-    activeTab === 'ypologismos'
-      ? 'text-cyan-500 after:scale-x-100'
-      : 'text-black hover:text-cyan-500 after:scale-x-0 hover:after:scale-x-100'
-  }`;
-
   return (
-    <nav className="w-full bg-slate-850 text-white shadow-md px-6 py-4 flex items-center justify-between font-sans">
+    <nav className="flex items-center justify-between bg-slate-850 px-6 py-4 font-sans text-white shadow-md">
       <div className="flex items-center">
-        <img src={KOP} alt="KOP Logo" className="w-12 h-12 object-contain" />
+        <img src={KOP} alt="KOP Logo" className="h-12 w-12 object-contain" />
       </div>
 
-      <div className="flex items-center space-x-8 h-full">
-        <button onClick={() => onTabChange('ypologismos')} className={tabButtonClass}>
+      <div className="flex h-full items-center space-x-8">
+        <button onClick={() => onTabChange('ypologismos')} className={getTabButtonClass(activeTab, 'ypologismos')}>
           <img
             src={resultIcon}
             alt="Result Icon"
-            className="w-6 h-6 mb-1 opacity-80 group-hover:opacity-100 transition-opacity"
+            className="mb-1 h-6 w-6 opacity-80 transition-opacity group-hover:opacity-100"
           />
           <span>ΥΠΟΛ ΚΩΠ</span>
         </button>
 
-        <div className="relative group cursor-pointer py-2">
-          <div className="relative flex flex-col items-center font-semibold tracking-wide text-black group-hover:text-cyan-500 transition-colors duration-300 pb-1 after:content-[''] after:absolute after:left-0 after:bottom-0 after:w-full after:h-[2px] after:bg-cyan-500 after:scale-x-0 group-hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-left">
+        <div className="group relative cursor-pointer py-2">
+          <div className="relative flex flex-col items-center pb-1 font-semibold tracking-wide text-black transition-colors duration-300 after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:origin-left after:scale-x-0 after:bg-cyan-500 after:transition-transform after:duration-300 after:content-[''] group-hover:text-cyan-500 group-hover:after:scale-x-100">
             <img
               src={tableIcon}
               alt="Table Icon"
-              className="w-6 h-6 mb-1 opacity-80 group-hover:opacity-100 transition-opacity"
+              className="mb-1 h-6 w-6 opacity-80 transition-opacity group-hover:opacity-100"
             />
-            <span>ΕΙΣ ΔΕΔ ▼</span>
+            <span>ΕΙΣ ΔΕΔ ΥΠ</span>
           </div>
 
           <DropdownMenu onSelect={onTabChange} />
         </div>
+
+        <button
+          onClick={() => onTabChange('my-submissions')}
+          className={getTabButtonClass(activeTab, 'my-submissions')}
+        >
+          <img
+            src={tableIcon}
+            alt="Submissions Icon"
+            className="mb-1 h-6 w-6 opacity-80 transition-opacity group-hover:opacity-100"
+          />
+          <span>Οι Υποβολές μου</span>
+        </button>
       </div>
 
-      <div className="flex items-center gap-3 bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+      <div className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2">
         <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
           <span className="text-sm font-bold tracking-wide text-slate-200">{username}</span>
         </div>
 
