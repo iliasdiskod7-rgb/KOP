@@ -1,5 +1,12 @@
-import type { FC } from 'react';
-import { formatTitleCase, getAmountKey } from './helpers';
+import type { ChangeEvent, FC } from 'react';
+import {
+  getAmountKey,
+  calculateHierarchicalGrandTotal,
+  calculateHierarchicalRowTotal,
+  formatTitleCase,
+  getRowDepth,
+  isLeafRow,
+} from './helpers';
 import type { Ypodeigma2Ale, Ypodeigma2Moira, Ypodeigma2Row, Ypodeigma2SectionConfig } from './types';
 
 function formatAmount(value: number) {
@@ -22,16 +29,8 @@ function calculateReviewCellValue(row: Ypodeigma2Row, ale: Ypodeigma2Ale, moires
       return total;
     }
 
-    return total + (row.values[getAmountKey(moira.id, matchingAle.id)] ?? 0);
+    return total + (row.values[`${String(moira.id)}::${String(matchingAle.id)}`] ?? 0);
   }, 0);
-}
-
-function calculateReviewRowTotal(
-  row: Ypodeigma2Row,
-  aleColumns: Ypodeigma2Ale[],
-  moires: Ypodeigma2Moira[],
-) {
-  return aleColumns.reduce((total, ale) => total + calculateReviewCellValue(row, ale, moires), 0);
 }
 
 function calculateReviewAleColumnTotal(
@@ -47,6 +46,17 @@ type Props = {
   sectionId: string;
   sectionTitle: string;
   sharedConfig: Pick<Ypodeigma2SectionConfig, 'analysisLevels' | 'moires'>;
+  onRowTextChange: (
+    rowId: Ypodeigma2Row['id'],
+    field: 'code' | 'costElementTitle',
+    value: string,
+  ) => void;
+  onAmountChange: (
+    rowId: Ypodeigma2Row['id'],
+    moiraId: string | number,
+    aleId: string | number,
+    rawValue: string,
+  ) => void;
   onBack: () => void;
   onContinue: () => void;
 };
@@ -56,18 +66,22 @@ const Ypodeigma2Section1BStage: FC<Props> = ({
   sectionId,
   sectionTitle,
   sharedConfig,
+  onRowTextChange,
+  onAmountChange,
   onBack,
   onContinue,
 }) => {
   const reviewAleColumns = buildReviewAleColumns(sharedConfig.moires);
-  const grandTotal = rows.reduce(
-    (total, row) => total + calculateReviewRowTotal(row, reviewAleColumns, sharedConfig.moires),
-    0,
-  );
   const analysisLevels = [...sharedConfig.analysisLevels].sort(
     (left, right) => left.displayOrder - right.displayOrder,
   );
   const leftColumnCount = 2 + analysisLevels.length;
+
+  const handleTextChange =
+    (rowId: Ypodeigma2Row['id'], field: 'code' | 'costElementTitle') =>
+    (event: ChangeEvent<HTMLInputElement>) => {
+      onRowTextChange(rowId, field, event.target.value);
+    };
 
   return (
     <div className="space-y-4 p-4">
@@ -127,7 +141,7 @@ const Ypodeigma2Section1BStage: FC<Props> = ({
                 <th
                   key={`analysis-${level.id}`}
                   rowSpan={3}
-                  className="border border-slate-400 bg-slate-50 px-2 py-2"
+                  className="border border-slate-400 bg-slate-50 px-2 py-2 text-center font-bold"
                 >
                   {level.label}
                 </th>
@@ -157,37 +171,103 @@ const Ypodeigma2Section1BStage: FC<Props> = ({
           </thead>
 
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="bg-white">
-                <td className="border border-slate-300 px-3 py-2 text-center font-semibold">{row.code}</td>
+            {rows.map((row) => {
+              const leafRow = isLeafRow(row, rows);
+              const depth = getRowDepth(row.code);
 
-                {analysisLevels.map((level) => (
-                  <td
-                    key={`${row.id}-analysis-${level.id}`}
-                    className="border border-slate-300 px-1 py-2 text-center text-[11px] font-bold text-slate-700"
-                  >
-                    {row.analysisLevel === level.value ? 'X' : ''}
+              return (
+                <tr key={row.id} className={leafRow ? 'bg-white' : 'bg-sky-50'}>
+                  <td className="border border-slate-300 px-2 py-1.5">
+                    <input
+                      type="text"
+                      value={row.code}
+                      onChange={handleTextChange(row.id, 'code')}
+                      className="w-full bg-transparent text-center font-semibold outline-none focus:bg-cyan-50"
+                    />
                   </td>
-                ))}
 
-                <td className="border border-slate-300 px-2 py-2 text-[11px] leading-tight">
-                  {row.costElementTitle}
-                </td>
+                  {analysisLevels.map((level) => (
+                    <td
+                      key={`${row.id}-analysis-${level.id}`}
+                      className="border border-slate-300 px-1 py-2 text-center text-[11px] font-bold text-slate-700"
+                    >
+                      {row.analysisLevel === level.value ? 'X' : ''}
+                    </td>
+                  ))}
 
-                {reviewAleColumns.map((ale) => (
-                  <td
-                    key={`${row.id}-stage-${ale.id}`}
-                    className="border border-slate-300 px-2 py-1.5 text-right"
-                  >
-                    {formatAmount(calculateReviewCellValue(row, ale, sharedConfig.moires))}
+                  <td className="border border-slate-300 px-2 py-1.5">
+                    <div style={{ paddingLeft: `${depth * 12}px` }}>
+                      <input
+                        type="text"
+                        value={row.costElementTitle}
+                        onChange={handleTextChange(row.id, 'costElementTitle')}
+                        className="w-full bg-transparent text-[11px] leading-tight outline-none focus:bg-cyan-50"
+                      />
+                    </div>
                   </td>
-                ))}
 
-                <td className="border border-slate-300 bg-orange-50 px-3 py-2 text-right font-bold text-slate-800">
-                  {formatAmount(calculateReviewRowTotal(row, reviewAleColumns, sharedConfig.moires))}
-                </td>
-              </tr>
-            ))}
+                  {reviewAleColumns.map((ale) => (
+                    <td
+                      key={`${row.id}-stage-${ale.id}`}
+                      className={`border border-slate-300 px-2 py-1.5 ${
+                        leafRow ? 'bg-white' : 'bg-sky-100'
+                      }`}
+                    >
+                      {leafRow ? (
+                        <input
+                          type="number"
+                          value={(() => {
+                            const firstMoira = sharedConfig.moires[0];
+
+                            if (!firstMoira) {
+                              return '';
+                            }
+
+                            const matchingAle = firstMoira.ales.find(
+                              (candidate) => candidate.displayOrder === ale.displayOrder,
+                            );
+
+                            if (!matchingAle) {
+                              return '';
+                            }
+
+                            return row.values[getAmountKey(firstMoira.id, matchingAle.id)] ?? '';
+                          })()}
+                          onChange={(event) => {
+                            const firstMoira = sharedConfig.moires[0];
+
+                            if (!firstMoira) {
+                              return;
+                            }
+
+                            const matchingAle = firstMoira.ales.find(
+                              (candidate) => candidate.displayOrder === ale.displayOrder,
+                            );
+
+                            if (!matchingAle) {
+                              return;
+                            }
+
+                            onAmountChange(row.id, firstMoira.id, matchingAle.id, event.target.value);
+                          }}
+                          className="w-full appearance-none bg-transparent text-right text-[11px] outline-none focus:bg-cyan-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                      ) : (
+                        <div className="min-h-[24px] rounded bg-sky-100" />
+                      )}
+                    </td>
+                  ))}
+
+                  <td
+                    className={`border border-slate-300 px-3 py-2 text-right font-bold text-slate-800 ${
+                      leafRow ? 'bg-orange-50' : 'bg-sky-100'
+                    }`}
+                  >
+                    {leafRow ? formatAmount(calculateHierarchicalRowTotal(row, rows, sharedConfig.moires)) : ''}
+                  </td>
+                </tr>
+              );
+            })}
 
             <tr className="bg-amber-100">
               <td
@@ -207,7 +287,7 @@ const Ypodeigma2Section1BStage: FC<Props> = ({
               ))}
 
               <td className="border border-slate-400 bg-orange-200 px-3 py-3 text-right font-extrabold">
-                {formatAmount(grandTotal)}
+                {formatAmount(calculateHierarchicalGrandTotal(rows, sharedConfig.moires))}
               </td>
             </tr>
           </tbody>

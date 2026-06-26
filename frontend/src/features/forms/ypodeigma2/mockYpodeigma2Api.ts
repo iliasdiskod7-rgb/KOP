@@ -1,8 +1,20 @@
 import { getAmountKey } from './helpers';
 import type { Ypodeigma2SectionConfig } from './types';
 
+function createEmptyValues() {
+  return {
+    [getAmountKey('337m', 'ale-101')]: null,
+    [getAmountKey('337m', 'ale-102')]: null,
+    [getAmountKey('337m', 'ale-103')]: null,
+    [getAmountKey('337m', 'ale-104')]: null,
+    [getAmountKey('338m', 'ale-201')]: null,
+    [getAmountKey('338m', 'ale-202')]: null,
+    [getAmountKey('338m', 'ale-203')]: null,
+    [getAmountKey('338m', 'ale-204')]: null,
+  };
+}
+
 function createMockSectionConfig(): Ypodeigma2SectionConfig {
-  // Προσωρινό mock με το shape που αναμένουμε να επιστρέφει αργότερα το backend.
   const analysisLevels = [
     { id: 'analysis-1', value: 1, label: '1', displayOrder: 1 },
     { id: 'analysis-2', value: 2, label: '2', displayOrder: 2 },
@@ -44,16 +56,7 @@ function createMockSectionConfig(): Ypodeigma2SectionConfig {
       costElementTitle: 'Πληρώματα Μοίρας Α/Φ-Ε/Π',
       analysisLevel: 1,
       displayOrder: 1,
-      values: {
-        [getAmountKey('337m', 'ale-101')]: null,
-        [getAmountKey('337m', 'ale-102')]: null,
-        [getAmountKey('337m', 'ale-103')]: null,
-        [getAmountKey('337m', 'ale-104')]: null,
-        [getAmountKey('338m', 'ale-201')]: null,
-        [getAmountKey('338m', 'ale-202')]: null,
-        [getAmountKey('338m', 'ale-203')]: null,
-        [getAmountKey('338m', 'ale-204')]: null,
-      },
+      values: createEmptyValues(),
     },
     {
       id: 'row-1a-2',
@@ -61,16 +64,7 @@ function createMockSectionConfig(): Ypodeigma2SectionConfig {
       costElementTitle: 'Προσωπικό Συντήρησης',
       analysisLevel: 2,
       displayOrder: 2,
-      values: {
-        [getAmountKey('337m', 'ale-101')]: 430,
-        [getAmountKey('337m', 'ale-102')]: 750,
-        [getAmountKey('337m', 'ale-103')]: 260,
-        [getAmountKey('337m', 'ale-104')]: null,
-        [getAmountKey('338m', 'ale-201')]: 120,
-        [getAmountKey('338m', 'ale-202')]: null,
-        [getAmountKey('338m', 'ale-203')]: 300,
-        [getAmountKey('338m', 'ale-204')]: 90,
-      },
+      values: createEmptyValues(),
     },
     {
       id: 'row-1a-3',
@@ -78,82 +72,37 @@ function createMockSectionConfig(): Ypodeigma2SectionConfig {
       costElementTitle: 'Προσωπικό Συντήρησης D-Level',
       analysisLevel: 3,
       displayOrder: 3,
-      values: {
-        [getAmountKey('337m', 'ale-101')]: null,
-        [getAmountKey('337m', 'ale-102')]: 180,
-        [getAmountKey('337m', 'ale-103')]: 360,
-        [getAmountKey('337m', 'ale-104')]: 500,
-        [getAmountKey('338m', 'ale-201')]: null,
-        [getAmountKey('338m', 'ale-202')]: 50,
-        [getAmountKey('338m', 'ale-203')]: 80,
-        [getAmountKey('338m', 'ale-204')]: 40,
-      },
+      values: createEmptyValues(),
     },
   ];
 
   const section1BRows = [
-    {
-      id: 'row-1b-1',
-      code: '1.Β.1',
-      costElementTitle: 'Έξοδα διαμονής προσωπικού',
-      analysisLevel: 2,
-      displayOrder: 1,
-      values: {
-        [getAmountKey('337m', 'ale-101')]: 210,
-        [getAmountKey('337m', 'ale-102')]: 120,
-        [getAmountKey('337m', 'ale-103')]: null,
-        [getAmountKey('337m', 'ale-104')]: 80,
-        [getAmountKey('338m', 'ale-201')]: 95,
-        [getAmountKey('338m', 'ale-202')]: 70,
-        [getAmountKey('338m', 'ale-203')]: null,
-        [getAmountKey('338m', 'ale-204')]: 40,
-      },
-    },
-    {
-      id: 'row-1b-2',
-      code: '1.Β.2',
-      costElementTitle: 'Έξοδα ημερήσιας αποζημίωσης',
-      analysisLevel: 3,
-      displayOrder: 2,
-      values: {
-        [getAmountKey('337m', 'ale-101')]: 150,
-        [getAmountKey('337m', 'ale-102')]: 180,
-        [getAmountKey('337m', 'ale-103')]: 110,
-        [getAmountKey('337m', 'ale-104')]: 90,
-        [getAmountKey('338m', 'ale-201')]: 130,
-        [getAmountKey('338m', 'ale-202')]: 75,
-        [getAmountKey('338m', 'ale-203')]: 65,
-        [getAmountKey('338m', 'ale-204')]: 30,
-      },
-    },
-    {
-      id: 'row-1b-3',
-      code: '1.Β.3',
-      costElementTitle: 'Λοιπά έξοδα μετακίνησης',
-      analysisLevel: 4,
-      displayOrder: 3,
-      values: {
-        [getAmountKey('337m', 'ale-101')]: null,
-        [getAmountKey('337m', 'ale-102')]: 40,
-        [getAmountKey('337m', 'ale-103')]: 55,
-        [getAmountKey('337m', 'ale-104')]: 25,
-        [getAmountKey('338m', 'ale-201')]: null,
-        [getAmountKey('338m', 'ale-202')]: 20,
-        [getAmountKey('338m', 'ale-203')]: 35,
-        [getAmountKey('338m', 'ale-204')]: 15,
-      },
-    },
+    { id: 'row-1b-1', code: '1.2.2', costElementTitle: 'Τίτλος στοιχείου κόστους 1.2.2', analysisLevel: 3, displayOrder: 1, values: createEmptyValues() },
+    { id: 'row-1b-2', code: '1.3', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3', analysisLevel: 2, displayOrder: 2, values: createEmptyValues() },
+    { id: 'row-1b-3', code: '1.3.1', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.1', analysisLevel: 3, displayOrder: 3, values: createEmptyValues() },
+    { id: 'row-1b-4', code: '1.3.2', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.2', analysisLevel: 3, displayOrder: 4, values: createEmptyValues() },
+    { id: 'row-1b-5', code: '1.3.2.1', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.2.1', analysisLevel: 4, displayOrder: 5, values: createEmptyValues() },
+    { id: 'row-1b-6', code: '1.3.2.2', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.2.2', analysisLevel: 4, displayOrder: 6, values: createEmptyValues() },
+    { id: 'row-1b-7', code: '1.3.2.3', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.2.3', analysisLevel: 4, displayOrder: 7, values: createEmptyValues() },
+    { id: 'row-1b-8', code: '1.3.2.4', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.2.4', analysisLevel: 4, displayOrder: 8, values: createEmptyValues() },
+    { id: 'row-1b-9', code: '1.3.3', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.3', analysisLevel: 3, displayOrder: 9, values: createEmptyValues() },
+    { id: 'row-1b-10', code: '1.3.3.1', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.3.1', analysisLevel: 4, displayOrder: 10, values: createEmptyValues() },
+    { id: 'row-1b-11', code: '1.3.3.2', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.3.2', analysisLevel: 4, displayOrder: 11, values: createEmptyValues() },
+    { id: 'row-1b-12', code: '1.3.3.3', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.3.3', analysisLevel: 4, displayOrder: 12, values: createEmptyValues() },
+    { id: 'row-1b-13', code: '1.3.4', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.4', analysisLevel: 3, displayOrder: 13, values: createEmptyValues() },
+    { id: 'row-1b-14', code: '1.3.4.1', costElementTitle: 'Τίτλος στοιχείου κόστους 1.3.4.1', analysisLevel: 4, displayOrder: 14, values: createEmptyValues() },
   ];
 
   return {
     sectionId: '1Α',
-    sectionTitle: '1Α. Οδοιπορικα Εξοδα Μετασταθμευσεων',
+    sectionTitle: '1Α. Οδοιπορικά Έξοδα Μετασταθμεύσεων',
     analysisLevels,
     moires,
     rows: section1ARows,
     section1B: {
       sectionId: '1Β',
-      sectionTitle: '1Β. Οδοιπορικά Έξοδα Μετακινήσεων Λοιπών Μοιρών-Επιστασιών-Τμημάτων Άμεσης Υποστήριξης Πτητικού Έργου',
+      sectionTitle:
+        '1Β. Οδοιπορικά Έξοδα Μετακινήσεων Λοιπών Μοιρών-Επιστασιών-Τμημάτων Άμεσης Υποστήριξης Πτητικού Έργου',
       rows: section1BRows,
     },
   };

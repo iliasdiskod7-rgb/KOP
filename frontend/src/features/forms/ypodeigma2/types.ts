@@ -47,6 +47,11 @@ export type Ypodeigma2Row = {
   values: Ypodeigma2AmountMap;
 };
 
+export type Ypodeigma2SubmissionStatus =
+  | 'pending-submission'
+  | 'submitted'
+  | 'returned-for-correction';
+
 export type Ypodeigma2Submission = {
   id: string;
   createdAt: string;
@@ -55,4 +60,5 @@ export type Ypodeigma2Submission = {
   totalAmount: number;
   moiraCount: number;
   rowCount: number;
+  status: Ypodeigma2SubmissionStatus;
 };

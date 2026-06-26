@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { getStoredYpodeigma2Submissions } from '../features/forms/ypodeigma2/submissionStorage';
+import type { Ypodeigma2Submission, Ypodeigma2SubmissionStatus } from '../features/forms/ypodeigma2/types';
 
 function formatAmount(value: number) {
   return new Intl.NumberFormat('el-GR', {
@@ -15,25 +16,86 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-export default function MySubmissions() {
-  const submissions = useMemo(() => getStoredYpodeigma2Submissions(), []);
+function getStatusTitle(status: Ypodeigma2SubmissionStatus) {
+  switch (status) {
+    case 'pending-submission':
+      return 'ΠΡΟΣ ΥΠΟΒΟΛΗ';
+    case 'submitted':
+      return 'ΥΠΟΒΛΗΘΕΙΣΕΣ';
+    case 'returned-for-correction':
+      return 'ΕΠΙΣΤΡΟΦΗ ΓΙΑ ΔΙΟΡΘΩΣΗ';
+  }
+}
+
+function getStatusDescription(status: Ypodeigma2SubmissionStatus) {
+  switch (status) {
+    case 'pending-submission':
+      return 'Αποθηκευμένες υποβολές που περιμένουν την τελική επιβεβαίωση.';
+    case 'submitted':
+      return 'Υποβολές που ολοκληρώθηκαν με οριστική υποβολή.';
+    case 'returned-for-correction':
+      return 'Υποβολές που επέστρεψαν για διορθώσεις πριν την επανυποβολή.';
+  }
+}
+
+function getStatusEmptyMessage(status: Ypodeigma2SubmissionStatus) {
+  switch (status) {
+    case 'pending-submission':
+      return 'Δεν υπάρχουν υποβολές προς υποβολή.';
+    case 'submitted':
+      return 'Δεν υπάρχουν υποβληθείσες υποβολές.';
+    case 'returned-for-correction':
+      return 'Δεν υπάρχουν επιστροφές για διόρθωση.';
+  }
+}
+
+function getStatusAccent(status: Ypodeigma2SubmissionStatus) {
+  switch (status) {
+    case 'pending-submission':
+      return {
+        badge: 'bg-amber-100 text-amber-800',
+        header: 'from-amber-50 to-orange-50',
+      };
+    case 'submitted':
+      return {
+        badge: 'bg-emerald-100 text-emerald-800',
+        header: 'from-emerald-50 to-teal-50',
+      };
+    case 'returned-for-correction':
+      return {
+        badge: 'bg-rose-100 text-rose-800',
+        header: 'from-rose-50 to-pink-50',
+      };
+  }
+}
+
+function SubmissionSection({
+  status,
+  submissions,
+}: {
+  status: Ypodeigma2SubmissionStatus;
+  submissions: Ypodeigma2Submission[];
+}) {
+  const accent = getStatusAccent(status);
 
   return (
-    <section className="space-y-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
-        <h1 className="text-2xl font-bold text-slate-800">Οι Υποβολές μου</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Εδώ εμφανίζονται οι αποθηκευμένες υποβολές του Υποδείγματος 2 μέχρι να συνδεθεί η ροή με
-          το backend.
-        </p>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+      <div className={`border-b border-slate-200 bg-gradient-to-r ${accent.header} px-6 py-5`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">{getStatusTitle(status)}</h2>
+            <p className="mt-1 text-sm text-slate-600">{getStatusDescription(status)}</p>
+          </div>
+          <div className={`rounded-full px-3 py-1 text-xs font-bold ${accent.badge}`}>
+            {submissions.length} εγγραφή{submissions.length === 1 ? '' : 'ές'}
+          </div>
+        </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
-        {submissions.length === 0 ? (
-          <div className="p-6 text-sm text-slate-600">
-            Δεν υπάρχει ακόμη αποθηκευμένη υποβολή.
-          </div>
-        ) : (
+      {submissions.length === 0 ? (
+        <div className="p-6 text-sm text-slate-500">{getStatusEmptyMessage(status)}</div>
+      ) : (
+        <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm text-slate-700">
             <thead className="bg-slate-100 text-slate-800">
               <tr>
@@ -63,8 +125,41 @@ export default function MySubmissions() {
               ))}
             </tbody>
           </table>
-        )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function MySubmissions() {
+  const submissions = useMemo(() => getStoredYpodeigma2Submissions(), []);
+
+  const pendingSubmissions = useMemo(
+    () => submissions.filter((submission) => submission.status === 'pending-submission'),
+    [submissions],
+  );
+  const submittedSubmissions = useMemo(
+    () => submissions.filter((submission) => submission.status === 'submitted'),
+    [submissions],
+  );
+  const returnedSubmissions = useMemo(
+    () => submissions.filter((submission) => submission.status === 'returned-for-correction'),
+    [submissions],
+  );
+
+  return (
+    <section className="space-y-6">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
+        <h1 className="text-2xl font-bold text-slate-800">Οι Υποβολές μου</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Εδώ εμφανίζονται όλες οι υποβολές του Υποδείγματος 2, χωρισμένες ανά κατάσταση,
+          μέχρι να συνδεθεί πλήρως η ροή με το backend.
+        </p>
       </div>
+
+      <SubmissionSection status="pending-submission" submissions={pendingSubmissions} />
+      <SubmissionSection status="submitted" submissions={submittedSubmissions} />
+      <SubmissionSection status="returned-for-correction" submissions={returnedSubmissions} />
     </section>
   );
 }

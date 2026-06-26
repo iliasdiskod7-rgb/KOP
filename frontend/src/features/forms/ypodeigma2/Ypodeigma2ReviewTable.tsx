@@ -1,10 +1,14 @@
 import { useMemo, useState, type FC } from 'react';
 import {
-  calculateAleColumnTotal,
-  calculateGrandTotal,
-  calculateRowTotal,
+  calculateCellValue,
+  calculateHierarchicalAleColumnTotal,
+  calculateHierarchicalGrandTotal,
+  calculateHierarchicalMoiraTotal,
+  calculateHierarchicalRowTotal,
   formatTitleCase,
   getAmountKey,
+  getRowDepth,
+  isLeafRow,
 } from './helpers';
 import type { Ypodeigma2Ale, Ypodeigma2Moira, Ypodeigma2Row, Ypodeigma2SectionConfig } from './types';
 
@@ -34,10 +38,29 @@ function calculateReviewCellValue(row: Ypodeigma2Row, ale: Ypodeigma2Ale, moires
 
 function calculateReviewRowTotal(
   row: Ypodeigma2Row,
+  rows: Ypodeigma2Row[],
   aleColumns: Ypodeigma2Ale[],
   moires: Ypodeigma2Moira[],
 ) {
-  return aleColumns.reduce((total, ale) => total + calculateReviewCellValue(row, ale, moires), 0);
+  if (aleColumns.length === 0) {
+    return 0;
+  }
+
+  return aleColumns.reduce((total, ale) => {
+    const firstMoira = moires[0];
+
+    if (!firstMoira) {
+      return total;
+    }
+
+    const matchingAle = firstMoira.ales.find((candidate) => candidate.displayOrder === ale.displayOrder);
+
+    if (!matchingAle) {
+      return total;
+    }
+
+    return total + calculateCellValue(row, rows, firstMoira.id, matchingAle.id);
+  }, 0);
 }
 
 function calculateReviewAleColumnTotal(
@@ -48,13 +71,11 @@ function calculateReviewAleColumnTotal(
   return rows.reduce((total, row) => total + calculateReviewCellValue(row, ale, moires), 0);
 }
 
-function calculateMoiraTotal(moira: Ypodeigma2Moira, rows: Ypodeigma2Row[]) {
-  return rows.reduce((total, row) => total + calculateRowTotal(row, [moira]), 0);
-}
-
 function buildTopTableColumnCount(leftColumnCount: number, moires: Ypodeigma2Moira[]) {
   return leftColumnCount + moires.reduce((count, moira) => count + moira.ales.length + 1, 0);
 }
+
+type ConfirmAction = 'save-draft' | 'submit-final' | null;
 
 type Props = {
   rows: Ypodeigma2Row[];
@@ -62,7 +83,8 @@ type Props = {
   section1BTitle: string;
   section: Ypodeigma2SectionConfig;
   onBack: () => void;
-  onSave: () => void;
+  onSaveDraft: () => void;
+  onSubmitFinal: () => void;
 };
 
 const Ypodeigma2ReviewTable: FC<Props> = ({
@@ -71,29 +93,56 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
   section1BTitle,
   section,
   onBack,
-  onSave,
+  onSaveDraft,
+  onSubmitFinal,
 }) => {
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const reviewAleColumns = useMemo(() => buildReviewAleColumns(section.moires), [section.moires]);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const analysisLevels = useMemo(
     () => [...section.analysisLevels].sort((left, right) => left.displayOrder - right.displayOrder),
     [section.analysisLevels],
   );
+  const reviewAleColumns = useMemo(() => buildReviewAleColumns(section.moires), [section.moires]);
 
   const leftColumnCount = 2 + analysisLevels.length;
   const topTableColumnCount = useMemo(
     () => buildTopTableColumnCount(leftColumnCount, section.moires),
     [leftColumnCount, section.moires],
   );
-  const section1AGrandTotal = calculateGrandTotal(rows, section.moires);
-  const section1BGrandTotal = calculateGrandTotal(section1BRows, section.moires);
+  const section1AGrandTotal = useMemo(
+    () => calculateHierarchicalGrandTotal(rows, section.moires),
+    [rows, section.moires],
+  );
+  const section1BGrandTotal = useMemo(
+    () => calculateHierarchicalGrandTotal(section1BRows, section.moires),
+    [section1BRows, section.moires],
+  );
   const combinedGrandTotal = section1AGrandTotal + section1BGrandTotal;
+
+  const confirmModalCopy =
+    confirmAction === 'submit-final'
+      ? {
+          title: 'Οριστική Υποβολή',
+          description:
+            'Η υποβολή θα καταχωρηθεί ως οριστικά υποβληθείσα και θα εμφανιστεί στην ενότητα "ΥΠΟΒΛΗΘΕΙΣΕΣ". Θέλεις να συνεχίσουμε;',
+          buttonLabel: 'Ναι, οριστική υποβολή',
+          onConfirm: onSubmitFinal,
+          buttonClass:
+            'rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-sky-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-1',
+        }
+      : {
+          title: 'Αποθήκευση',
+          description:
+            'Η υποβολή θα αποθηκευτεί προσωρινά και θα εμφανιστεί στην ενότητα "ΠΡΟΣ ΥΠΟΒΟΛΗ". Θέλεις να συνεχίσουμε;',
+          buttonLabel: 'Ναι, αποθήκευση',
+          onConfirm: onSaveDraft,
+          buttonClass:
+            'rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-1',
+        };
 
   return (
     <div className="space-y-6 p-4">
       <div>
         <h2 className="mb-2 text-lg font-bold text-slate-800">Συγκεντρωτικός έλεγχος Υποδείγματος 2</h2>
-     
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-300 bg-slate-50">
@@ -201,41 +250,49 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
           </thead>
 
           <tbody>
-            {rows.map((row) => (
-              <tr key={`top-row-${row.id}`} className="bg-white">
-                <td className="border border-slate-300 px-3 py-2 text-center font-semibold">{row.code}</td>
+            {rows.map((row) => {
+              const depth = getRowDepth(row.code);
 
-                {analysisLevels.map((level) => (
-                  <td
-                    key={`top-${row.id}-analysis-${level.id}`}
-                    className="border border-slate-300 px-1 py-2 text-center font-bold text-slate-700"
-                  >
-                    {row.analysisLevel === level.value ? 'x' : ''}
+              return (
+                <tr key={`top-row-${row.id}`} className="bg-white">
+                  <td className="border border-slate-300 px-3 py-2 text-center font-semibold">{row.code}</td>
+
+                  {analysisLevels.map((level) => (
+                    <td
+                      key={`top-${row.id}-analysis-${level.id}`}
+                      className="border border-slate-300 px-1 py-2 text-center font-bold text-slate-700"
+                    >
+                      {row.analysisLevel === level.value ? 'x' : ''}
+                    </td>
+                  ))}
+
+                  <td className="border border-slate-300 px-2 py-2 text-[11px] leading-tight">
+                    <div style={{ paddingLeft: `${depth * 12}px` }}>{row.costElementTitle}</div>
                   </td>
-                ))}
-
-                <td className="border border-slate-300 px-2 py-2 text-[11px] leading-tight">
-                  {row.costElementTitle}
-                </td>
 
                 {section.moires.flatMap((moira) => [
                   ...moira.ales.map((ale) => (
                     <td
                       key={`top-${row.id}-${moira.id}-${ale.id}`}
-                      className="border border-slate-300 px-2 py-1.5 text-right"
+                      className={`border border-slate-300 px-2 py-1.5 text-right ${
+                        isLeafRow(row, rows) ? 'bg-white' : 'bg-sky-100'
+                      }`}
                     >
-                      {formatAmount(row.values[getAmountKey(moira.id, ale.id)] ?? 0)}
+                      {isLeafRow(row, rows) ? formatAmount(calculateCellValue(row, rows, moira.id, ale.id)) : ''}
                     </td>
                   )),
                   <td
                     key={`top-${row.id}-${moira.id}-syn`}
-                    className="border border-slate-300 bg-orange-50 px-3 py-2 text-right font-bold text-slate-800"
+                    className={`border border-slate-300 px-3 py-2 text-right font-bold text-slate-800 ${
+                      isLeafRow(row, rows) ? 'bg-orange-50' : 'bg-sky-100'
+                    }`}
                   >
-                    {formatAmount(calculateRowTotal(row, [moira]))}
+                    {isLeafRow(row, rows) ? formatAmount(calculateHierarchicalRowTotal(row, rows, [moira])) : ''}
                   </td>,
                 ])}
-              </tr>
-            ))}
+                </tr>
+              );
+            })}
 
             <tr className="bg-amber-100">
               <td
@@ -251,14 +308,14 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
                     key={`top-sum-${moira.id}-${ale.id}`}
                     className="border border-slate-400 px-3 py-3 text-right font-bold"
                   >
-                    {formatAmount(calculateAleColumnTotal(moira.id, ale.id, rows))}
+                    {formatAmount(calculateHierarchicalAleColumnTotal(moira.id, ale.id, rows))}
                   </td>
                 )),
                 <td
                   key={`top-sum-${moira.id}-syn`}
                   className="border border-slate-400 bg-orange-200 px-3 py-3 text-right font-extrabold"
                 >
-                  {formatAmount(calculateMoiraTotal(moira, rows))}
+                  {formatAmount(calculateHierarchicalMoiraTotal(moira, rows))}
                 </td>,
               ])}
             </tr>
@@ -345,7 +402,7 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
                 <th
                   key={`analysis-${level.id}`}
                   rowSpan={3}
-                  className="border border-slate-400 bg-slate-50 px-2 py-2"
+                  className="border border-slate-400 bg-slate-50 px-2 py-2 text-center font-bold"
                 >
                   {level.label}
                 </th>
@@ -375,37 +432,51 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
           </thead>
 
           <tbody>
-            {section1BRows.map((row) => (
-              <tr key={row.id} className="bg-white">
-                <td className="border border-slate-300 px-3 py-2 text-center font-semibold">{row.code}</td>
+            {section1BRows.map((row) => {
+              const depth = getRowDepth(row.code);
 
-                {analysisLevels.map((level) => (
-                  <td
-                    key={`${row.id}-analysis-${level.id}`}
-                    className="border border-slate-300 px-1 py-2 text-center text-[11px] font-bold text-slate-700"
-                  >
-                    {row.analysisLevel === level.value ? 'X' : ''}
+              return (
+                <tr key={row.id} className="bg-white">
+                  <td className="border border-slate-300 px-3 py-2 text-center font-semibold">{row.code}</td>
+
+                  {analysisLevels.map((level) => (
+                    <td
+                      key={`${row.id}-analysis-${level.id}`}
+                      className="border border-slate-300 px-1 py-2 text-center text-[11px] font-bold text-slate-700"
+                    >
+                      {row.analysisLevel === level.value ? 'X' : ''}
+                    </td>
+                  ))}
+
+                  <td className="border border-slate-300 px-2 py-2 text-[11px] leading-tight">
+                    <div style={{ paddingLeft: `${depth * 12}px` }}>{row.costElementTitle}</div>
                   </td>
-                ))}
 
-                <td className="border border-slate-300 px-2 py-2 text-[11px] leading-tight">
-                  {row.costElementTitle}
-                </td>
+                  {reviewAleColumns.map((ale) => (
+                    <td
+                      key={`${row.id}-review-${ale.id}`}
+                      className={`border border-slate-300 px-2 py-1.5 text-right font-semibold text-sky-900 ${
+                        isLeafRow(row, section1BRows) ? 'bg-white' : 'bg-sky-100'
+                      }`}
+                    >
+                      {isLeafRow(row, section1BRows)
+                        ? formatAmount(calculateReviewCellValue(row, ale, section.moires))
+                        : ''}
+                    </td>
+                  ))}
 
-                {reviewAleColumns.map((ale) => (
                   <td
-                    key={`${row.id}-review-${ale.id}`}
-                    className="border border-slate-300 px-2 py-1.5 text-right"
+                    className={`border border-slate-300 px-3 py-2 text-right font-bold text-slate-800 ${
+                      isLeafRow(row, section1BRows) ? 'bg-orange-50' : 'bg-sky-100'
+                    }`}
                   >
-                    {formatAmount(calculateReviewCellValue(row, ale, section.moires))}
+                    {isLeafRow(row, section1BRows)
+                      ? formatAmount(calculateReviewRowTotal(row, section1BRows, reviewAleColumns, section.moires))
+                      : ''}
                   </td>
-                ))}
-
-                <td className="border border-slate-300 bg-orange-50 px-3 py-2 text-right font-bold text-slate-800">
-                  {formatAmount(calculateReviewRowTotal(row, reviewAleColumns, section.moires))}
-                </td>
-              </tr>
-            ))}
+                </tr>
+              );
+            })}
 
             <tr className="bg-amber-100">
               <td
@@ -425,6 +496,26 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
               ))}
 
               <td className="border border-slate-400 bg-orange-200 px-3 py-3 text-right font-extrabold">
+                {formatAmount(section1BGrandTotal)}
+              </td>
+            </tr>
+
+            <tr className="bg-orange-50">
+              <td
+                colSpan={leftColumnCount}
+                className="border border-slate-400 px-3 py-3 text-right font-bold uppercase tracking-wide"
+              >
+                Σύνολο 1Β
+              </td>
+
+              <td
+                colSpan={reviewAleColumns.length}
+                className="border border-slate-400 px-3 py-3 text-right font-semibold text-slate-700"
+              >
+                Συνολική πρόσθεση των πορτοκαλί κελιών
+              </td>
+
+              <td className="border border-slate-400 bg-orange-300 px-3 py-3 text-right font-extrabold text-slate-900">
                 {formatAmount(section1BGrandTotal)}
               </td>
             </tr>
@@ -453,35 +544,39 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-3">
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
         <button
           type="button"
           onClick={onBack}
           className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-slate-400 hover:bg-slate-50 hover:shadow"
         >
-          Πίσω στο 1Β
+          Πίσω
         </button>
         <button
           type="button"
-          onClick={() => setIsConfirmOpen(true)}
+          onClick={() => setConfirmAction('save-draft')}
           className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-1"
         >
           Αποθήκευση
         </button>
+        <button
+          type="button"
+          onClick={() => setConfirmAction('submit-final')}
+          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-sky-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-1"
+        >
+          Οριστική Υποβολή
+        </button>
       </div>
 
-      {isConfirmOpen && (
+      {confirmAction && (
         <div className="fixed left-0 top-0 z-50 flex h-full w-full items-center justify-center bg-black/40">
           <div className="mx-4 w-full max-w-md rounded bg-white p-6">
-            <h3 className="mb-2 text-lg font-bold">Οριστική αποθήκευση</h3>
-            <p className="mb-4 text-sm text-slate-700">
-              Είσαι βέβαιος ότι θέλεις να ολοκληρώσεις την αποθήκευση; Με την επιβεβαίωση η υποβολή
-              θα μεταφερθεί στη σελίδα "Οι Υποβολές μου".
-            </p>
+            <h3 className="mb-2 text-lg font-bold">{confirmModalCopy.title}</h3>
+            <p className="mb-4 text-sm text-slate-700">{confirmModalCopy.description}</p>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setIsConfirmOpen(false)}
+                onClick={() => setConfirmAction(null)}
                 className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-slate-400 hover:bg-slate-50 hover:shadow"
               >
                 Ακύρωση
@@ -489,12 +584,12 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
               <button
                 type="button"
                 onClick={() => {
-                  onSave();
-                  setIsConfirmOpen(false);
+                  confirmModalCopy.onConfirm();
+                  setConfirmAction(null);
                 }}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-1"
+                className={confirmModalCopy.buttonClass}
               >
-                Ναι, οριστική αποθήκευση
+                {confirmModalCopy.buttonLabel}
               </button>
             </div>
           </div>
