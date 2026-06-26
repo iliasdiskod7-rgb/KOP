@@ -1,5 +1,6 @@
 import type { ChangeEvent, FC } from 'react';
 import {
+  blockInvalidNumberInput,
   getAmountKey,
   calculateHierarchicalGrandTotal,
   calculateHierarchicalRowTotal,
@@ -250,6 +251,7 @@ const Ypodeigma2Section1BStage: FC<Props> = ({
 
                             onAmountChange(row.id, firstMoira.id, matchingAle.id, event.target.value);
                           }}
+                          onKeyDown={blockInvalidNumberInput}
                           className="w-full appearance-none bg-transparent text-right text-[11px] outline-none focus:bg-cyan-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                       ) : (

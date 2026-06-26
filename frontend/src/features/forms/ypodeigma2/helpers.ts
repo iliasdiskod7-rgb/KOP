@@ -114,3 +114,12 @@ export function formatTitleCase(value: string) {
     )
     .join(' ');
 }
+
+export function blockInvalidNumberInput(event: {
+  key: string;
+  preventDefault: () => void;
+}) {
+  if (['e', 'E', 'p', 'P', '+', '-'].includes(event.key)) {
+    event.preventDefault();
+  }
+}
