@@ -65,7 +65,7 @@ export default function Ypodeigma2Form() {
   useEffect(() => {
     let mounted = true;
 
-    fetchYpodeigma2Section('1Ξ‘').then((config) => {
+    fetchYpodeigma2Section('1Α').then((config) => {
       if (!mounted) {
         return;
       }
@@ -105,7 +105,7 @@ export default function Ypodeigma2Form() {
   if (!section) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
-        <p className="text-sm font-medium text-slate-600">Ξ¦ΟΟΟ„Ο‰ΟƒΞ· Ξ΄ΞΉΞ¬Ο„Ξ±ΞΎΞ·Ο‚ Ξ¥Ο€ΞΏΞ΄ΞµΞ―Ξ³ΞΌΞ±Ο„ΞΏΟ‚ 2...</p>
+        <p className="text-sm font-medium text-slate-600">Φόρτωση διάταξης Υποδείγματος 2...</p>
       </div>
     );
   }
@@ -210,7 +210,7 @@ export default function Ypodeigma2Form() {
       status,
     });
 
-    // Ξ ΟΞΏΟƒΟ‰ΟΞΉΞ½Ξ¬ ΞΊΟΞ±Ο„Ξ¬ΞΌΞµ ΞΊΞ±ΞΉ Ο„ΞΏ payload Ξ΄ΞΉΞ±ΞΈΞ­ΟƒΞΉΞΌΞΏ Ξ³ΞΉΞ± backend wiring.
+    // Προσωρινά κρατάμε και το payload διαθέσιμο για backend wiring.
     // eslint-disable-next-line no-console
     console.log(status === 'submitted' ? 'Final submit payload' : 'Draft save payload', payload);
 
@@ -222,13 +222,13 @@ export default function Ypodeigma2Form() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Ξ¥Ο€ΟΞ΄ΞµΞΉΞ³ΞΌΞ± 2</h1>
+            <h1 className="text-2xl font-bold text-slate-800">Υπόδειγμα 2</h1>
             <p className="text-sm text-slate-600">{formatTitleCase(section.sectionTitle)}</p>
           </div>
           <div className="rounded-xl bg-slate-100 px-4 py-3 text-right text-xs font-semibold text-slate-600">
-            <div>ΞΞΏΞ―ΟΞµΟ‚ / ΞΞΏΞ½Ξ¬Ξ΄ΞµΟ‚: {section.moires.length}</div>
-            <div>Ξ£Ο…Ξ½ΞΏΞ»ΞΉΞΊΞ­Ο‚ ΟƒΟ„Ξ®Ξ»ΞµΟ‚ Ξ‘Ξ›Ξ•: {totalAleCount}</div>
-            <div>Ξ“ΟΞ±ΞΌΞΌΞ­Ο‚ ΟƒΟ„ΞΏΞΉΟ‡ΞµΞ―Ο‰Ξ½ ΞΊΟΟƒΟ„ΞΏΟ…Ο‚: {rows.length}</div>
+            <div>Μοίρες / Μονάδες: {section.moires.length}</div>
+            <div>Συνολικές στήλες ΑΛΕ: {totalAleCount}</div>
+            <div>Γραμμές στοιχείων κόστους: {rows.length}</div>
           </div>
         </div>
 
@@ -256,7 +256,7 @@ export default function Ypodeigma2Form() {
                       colSpan={totalColumnCount}
                       className="border border-slate-400 bg-slate-200 px-4 py-3 text-center text-sm font-bold uppercase tracking-wide align-middle"
                     >
-                      Ξ¥Ξ ΞΞ”Ξ•Ξ™Ξ“ΞΞ‘ 2 - 1Ξ‘
+                      ΥΠΟΔΕΙΓΜΑ 2 - 1Α
                     </th>
                   </tr>
                   <tr>
@@ -272,25 +272,25 @@ export default function Ypodeigma2Form() {
                       rowSpan={4}
                       className="border border-slate-400 bg-slate-100 px-3 py-2 text-center font-bold align-middle"
                     >
-                      ΞΞ©Ξ”Ξ™ΞΞ‘Ξ£
+                      ΚΩΔΙΚΑΣ
                     </th>
                     <th
                       colSpan={analysisLevels.length}
                       className="border border-slate-400 bg-slate-100 px-3 py-2 text-center font-bold align-middle"
                     >
-                      Ξ•Ξ Ξ™Ξ Ξ•Ξ”Ξ Ξ‘ΞΞ‘Ξ›Ξ¥Ξ£Ξ—Ξ£
+                      ΕΠΙΠΕΔΟ ΑΝΑΛΥΣΗΣ
                     </th>
                     <th
                       rowSpan={4}
                       className="border border-slate-400 bg-slate-100 px-3 py-2 text-center font-bold align-middle"
                     >
-                      Ξ¤Ξ™Ξ¤Ξ›ΞΞ£ Ξ£Ξ¤ΞΞ™Ξ§Ξ•Ξ™ΞΞ¥ ΞΞΞ£Ξ¤ΞΞ¥Ξ£
+                      ΤΙΤΛΟΣ ΣΤΟΙΧΕΙΟΥ ΚΟΣΤΟΥΣ
                     </th>
                     <th
                       colSpan={currentAmountColumnCount}
                       className="border border-slate-400 bg-slate-100 px-3 py-2 text-center font-bold align-middle"
                     >
-                      ΞΟΟƒΟ„ΞΏΟ‚ ΞΞ΄ΞΏΞΉΟ€ΞΏΟΞΉΞΊΟΞ½ ΞΞµΟ„Ξ±ΟƒΟ„Ξ±ΞΈΞΌΞµΟΟƒΞµΟ‰Ξ½
+                      Κόστος Οδοιπορικών Μετασταθμεύσεων
                     </th>
                   </tr>
                   <tr>
@@ -321,14 +321,14 @@ export default function Ypodeigma2Form() {
                           colSpan={moira.ales.length}
                           className="border border-slate-400 bg-slate-100 px-3 py-2 text-center font-bold uppercase align-middle"
                         >
-                          Ξ‘Ξ›Ξ•
+                          ΑΛΕ
                         </th>
                         <th
                           key={`moira-total-${moira.id}`}
                           rowSpan={2}
                           className="border border-slate-400 bg-orange-100 px-3 py-2 text-center font-bold align-middle"
                         >
-                          Ξ£Ξ¥Ξ
+                          ΣΥΝ
                         </th>
                       </FragmentHeader>
                     ))}
@@ -420,7 +420,7 @@ export default function Ypodeigma2Form() {
                       colSpan={leftColumnCount}
                       className="border border-slate-400 px-3 py-3 text-right font-bold uppercase tracking-wide align-middle"
                     >
-                      Ξ£Ξ¥Ξ Ξ£Ξ¤Ξ—Ξ›
+                      ΣΥΝ ΣΤΗΛ
                     </td>
 
                     {currentMoires.flatMap((moira) => [
@@ -486,11 +486,11 @@ export default function Ypodeigma2Form() {
               disabled={currentMoiraIndex === 0}
               className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-slate-400 hover:bg-slate-50 hover:shadow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:scale-100"
             >
-              Ξ ΟΞΏΞ·Ξ³ΞΏΟΞΌΞµΞ½Ξ· ΞΞΏΞ―ΟΞ±
+              Προηγούμενη Μοίρα
             </button>
 
             <div className="text-sm font-medium text-slate-700">
-              ΞΞΏΞ―ΟΞ± {currentMoiraIndex + 1} Ξ±Ο€Ο {section.moires.length}: {currentMoiraTitle}
+              Μοίρα {currentMoiraIndex + 1} από {section.moires.length}: {currentMoiraTitle}
             </div>
 
             {currentMoiraIndex < section.moires.length - 1 ? (
@@ -501,7 +501,7 @@ export default function Ypodeigma2Form() {
                 }
                 className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-sky-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-1"
               >
-                Ξ•Ο€ΟΞΌΞµΞ½Ξ· ΞΞΏΞ―ΟΞ±
+                Επόμενη Μοίρα
               </button>
             ) : (
               <button
@@ -509,7 +509,7 @@ export default function Ypodeigma2Form() {
                 onClick={() => setStep('section-1b')}
                 className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-amber-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1"
               >
-                Ξ£Ο…Ξ½Ξ­Ο‡ΞµΞΉΞ± ΟƒΟ„ΞΏΞ½ Ο€Ξ―Ξ½Ξ±ΞΊΞ± 1Ξ’
+                Συνέχεια στον πίνακα 1Β
               </button>
             )}
           </div>
