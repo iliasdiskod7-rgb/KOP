@@ -299,7 +299,6 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
                 colSpan={leftColumnCount}
                 className="border border-slate-400 px-3 py-3 text-right font-bold uppercase tracking-wide"
               >
-                ΣΥΝ ΣΤΗΛ
               </td>
 
               {section.moires.flatMap((moira) => [
@@ -332,7 +331,6 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
                 colSpan={section.moires.reduce((count, moira) => count + moira.ales.length, 0)}
                 className="border border-slate-400 px-3 py-3 text-right font-semibold text-slate-700"
               >
-                Συνολική πρόσθεση των πορτοκαλί κελιών
               </td>
 
               <td
@@ -483,7 +481,6 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
                 colSpan={leftColumnCount}
                 className="border border-slate-400 px-3 py-3 text-right font-bold uppercase tracking-wide"
               >
-                ΣΥΝ ΣΤΗΛ
               </td>
 
               {reviewAleColumns.map((ale) => (
@@ -512,7 +509,6 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
                 colSpan={reviewAleColumns.length}
                 className="border border-slate-400 px-3 py-3 text-right font-semibold text-slate-700"
               >
-                Συνολική πρόσθεση των πορτοκαλί κελιών
               </td>
 
               <td className="border border-slate-400 bg-orange-300 px-3 py-3 text-right font-extrabold text-slate-900">

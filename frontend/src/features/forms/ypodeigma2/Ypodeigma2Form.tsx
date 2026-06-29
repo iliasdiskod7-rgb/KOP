@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { Fragment, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   blockInvalidNumberInput,
@@ -315,7 +315,7 @@ export default function Ypodeigma2Form() {
                   </tr>
                   <tr>
                     {currentMoires.map((moira) => (
-                      <FragmentHeader>
+                      <Fragment key={`moira-fragment-${moira.id}`}>
                         <th
                           key={`moira-ale-${moira.id}`}
                           colSpan={moira.ales.length}
@@ -330,7 +330,7 @@ export default function Ypodeigma2Form() {
                         >
                           ΣΥΝ
                         </th>
-                      </FragmentHeader>
+                      </Fragment>
                     ))}
                   </tr>
                   <tr>
@@ -517,12 +517,4 @@ export default function Ypodeigma2Form() {
       </div>
     </section>
   );
-}
-
-type FragmentHeaderProps = {
-  children: ReactNode;
-};
-
-function FragmentHeader({ children }: FragmentHeaderProps) {
-  return <>{children}</>;
 }
