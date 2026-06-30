@@ -14,3 +14,8 @@ export type ProsopikoRow = {
   taxinomisiKodikaPinaka1Kai62: string;
   imeres: number;
 };
+
+export type ProsopikoClassificationOption = {
+  code: string;
+  description: string;
+};
