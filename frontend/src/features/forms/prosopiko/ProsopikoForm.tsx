@@ -229,8 +229,12 @@ export default function ProsopikoForm() {
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-slate-300 bg-slate-50">
-          <div className="overflow-x-auto">
+        <div className="overflow-visible rounded-xl border border-slate-300 bg-slate-50">
+          <div
+            className={`overflow-x-auto overflow-y-visible ${
+              activeSuggestions.length > 0 ? 'pb-44' : ''
+            }`}
+          >
             <table className="w-full min-w-[1280px] border-collapse text-[10px] text-slate-800 md:text-[11px] xl:min-w-0">
               <colgroup>
                 <col className="w-[6%]" />
@@ -323,11 +327,11 @@ export default function ProsopikoForm() {
                         {formatDate(row.eos)}
                       </td>
                       <td
-                        className={`border px-2 py-1.5 align-top ${
+                        className={`relative border px-2 py-1.5 align-top ${
                           hasError ? 'border-rose-300 bg-rose-50' : 'border-slate-300 bg-amber-50'
                         }`}
                       >
-                        <div className="relative">
+                        <div>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -341,26 +345,24 @@ export default function ProsopikoForm() {
                           />
 
                           {showSuggestions ? (
-                            <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-100">
-                              <div className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500 md:text-[11px]">
+                            <div className="absolute left-2 top-full z-20 mt-1 w-[300px] overflow-hidden rounded-lg border border-slate-300 bg-white shadow-lg">
+                              <div className="border-b border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                                 Διαθέσιμες επιλογές
                               </div>
-                              <div className="max-h-[126px] overflow-y-auto">
-                              {activeSuggestions.map((option) => (
-                                <button
-                                  key={option.code}
-                                  type="button"
-                                  onMouseDown={() => handleSuggestionSelect(row.id, option.code)}
-                                  className="flex w-full items-start justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left transition-colors duration-150 last:border-b-0 hover:bg-cyan-50"
-                                >
-                                  <span className="min-w-[52px] rounded-md bg-sky-100 px-2 py-0.5 text-center font-bold text-sky-700">
-                                    {option.code}
-                                  </span>
-                                  <span className="text-[10px] leading-5 text-slate-500 md:text-[11px]">
-                                    {option.description}
-                                  </span>
-                                </button>
-                              ))}
+                              <div className="max-h-[180px] overflow-y-auto">
+                                {activeSuggestions.map((option) => (
+                                  <button
+                                    key={option.code}
+                                    type="button"
+                                    onMouseDown={() => handleSuggestionSelect(row.id, option.code)}
+                                    className="w-full border-b border-slate-100 px-2 py-1.5 text-left transition-colors duration-150 last:border-b-0 hover:bg-cyan-50"
+                                  >
+                                    <div className="text-[11px] font-bold text-sky-700">{option.code}</div>
+                                    <div className="mt-0.5 whitespace-normal break-words text-[10px] leading-snug text-slate-600">
+                                      {option.description}
+                                    </div>
+                                  </button>
+                                ))}
                               </div>
                             </div>
                           ) : null}

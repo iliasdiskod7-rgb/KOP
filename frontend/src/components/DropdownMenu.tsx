@@ -17,7 +17,10 @@ const formOptions = [
 
 export default function DropdownMenu({ onSelect }: DropdownMenuProps) {
   return (
-    <div className="absolute left-0 z-50 mt-2 max-h-64 w-56 origin-top overflow-y-auto rounded-lg border border-slate-100 bg-white text-slate-800 opacity-0 shadow-2xl invisible transition-all duration-300 ease-out -translate-y-3 scale-95 group-hover:visible group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100">
+    <div className="absolute left-full top-0 z-50 ml-2 max-h-72 w-60 origin-left overflow-y-auto rounded-xl border border-slate-200 bg-white text-slate-800 shadow-2xl ring-1 ring-slate-100">
+      <div className="border-b border-slate-100 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+        Υποδείγματα
+      </div>
       <ul className="py-1">
         {formOptions.map((option) => (
           <li key={option.key}>
