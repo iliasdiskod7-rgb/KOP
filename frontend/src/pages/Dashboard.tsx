@@ -113,7 +113,7 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
   };
 
   return (
-    <div className="flex-grow bg-slate-50">
+    <div className="flex-grow overflow-x-hidden bg-slate-50">
       <Navbar
         activeTab={activeTab}
         onLogout={onLogout}
