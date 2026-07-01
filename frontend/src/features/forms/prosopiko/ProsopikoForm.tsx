@@ -65,6 +65,21 @@ function buildSuggestions(
     .slice(0, 8);
 }
 
+function calculateNetDays(row: ProsopikoRow, rows: ProsopikoRow[]) {
+  if (row.movementType !== 'Τοποθέτηση') {
+    return null;
+  }
+
+  const detachmentDays = rows
+    .filter(
+      (candidateRow) =>
+        candidateRow.ama === row.ama && candidateRow.movementType === 'Απόσπαση',
+    )
+    .reduce((sum, candidateRow) => sum + candidateRow.imeres, 0);
+
+  return row.imeres - detachmentDays;
+}
+
 export default function ProsopikoForm() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<ProsopikoRow[]>([]);
@@ -72,6 +87,7 @@ export default function ProsopikoForm() {
   const [isLoading, setIsLoading] = useState(true);
   const [validationMessage, setValidationMessage] = useState('');
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
+  const [invalidRowIds, setInvalidRowIds] = useState<string[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -138,49 +154,60 @@ export default function ProsopikoForm() {
     );
 
     setActiveRowId(null);
+    setInvalidRowIds((currentRowIds) => currentRowIds.filter((currentRowId) => currentRowId !== rowId));
+    setValidationMessage('');
+  };
+
+  const handleClassificationFocus = (rowId: string) => {
+    setActiveRowId(rowId);
+    setInvalidRowIds((currentRowIds) =>
+      currentRowIds.filter((currentRowId) => currentRowId !== rowId),
+    );
     setValidationMessage('');
   };
 
   const handleClassificationBlur = (rowId: string) => {
     window.setTimeout(() => {
-      setRows((currentRows) =>
-        currentRows.map((row) => {
-          if (row.id !== rowId) {
-            return row;
+      const currentRow = rows.find((row) => row.id === rowId);
+
+      if (currentRow) {
+        const trimmedValue = currentRow.taxinomisiKodikaPinaka1Kai62.trim();
+        const isInvalidValue =
+          trimmedValue.length > 0 &&
+          (!isValidClassificationCode(trimmedValue) ||
+            !hasMatchingClassificationOption(trimmedValue, classificationOptions));
+
+        setInvalidRowIds((currentRowIds) => {
+          if (isInvalidValue) {
+            return currentRowIds.includes(rowId) ? currentRowIds : [...currentRowIds, rowId];
           }
 
-          const trimmedValue = row.taxinomisiKodikaPinaka1Kai62.trim();
-
-          if (trimmedValue.length === 0) {
-            return row;
-          }
-
-          if (!hasMatchingClassificationOption(trimmedValue, classificationOptions)) {
-            return {
-              ...row,
-              taxinomisiKodikaPinaka1Kai62: '',
-            };
-          }
-
-          return row;
-        }),
-      );
+          return currentRowIds.filter((currentRowId) => currentRowId !== rowId);
+        });
+      }
 
       setActiveRowId((currentRowId) => (currentRowId === rowId ? null : currentRowId));
     }, 120);
   };
 
   const handleSave = () => {
-    const hasInvalidRequiredField = rows.some(
-      (row) =>
-        row.taxinomisiKodikaPinaka1Kai62.trim().length === 0 ||
-        !isValidClassificationCode(row.taxinomisiKodikaPinaka1Kai62.trim()) ||
-        !hasMatchingClassificationOption(row.taxinomisiKodikaPinaka1Kai62.trim(), classificationOptions),
-    );
+    const nextInvalidRowIds = rows
+      .filter((row) => {
+        const trimmedValue = row.taxinomisiKodikaPinaka1Kai62.trim();
 
-    if (hasInvalidRequiredField) {
+        return (
+          trimmedValue.length > 0 &&
+          (!isValidClassificationCode(trimmedValue) ||
+            !hasMatchingClassificationOption(trimmedValue, classificationOptions))
+        );
+      })
+      .map((row) => row.id);
+
+    setInvalidRowIds(nextInvalidRowIds);
+
+    if (nextInvalidRowIds.length > 0) {
       setValidationMessage(
-        'Πρέπει να συμπληρωθούν όλα τα πεδία ταξινόμησης με έγκυρο διαθέσιμο κωδικό από τις επιλογές, π.χ. 1 ή 1.2 ή 1.2.3.',
+        'Πρέπει να έχει έγκυρο διαθέσιμο κωδικό από τις επιλογές. Αν δεν θέλετε να δηλώσετε τον κωδικό, άφησέ το κενό.',
       );
       return;
     }
@@ -218,7 +245,8 @@ export default function ProsopikoForm() {
           <div>
             <h1 className="text-2xl font-bold text-slate-800">ΠΡΟΣΩΠΙΚΟ</h1>
             <p className="text-sm text-slate-600">
-              Οι κωδικοί ταξινόμησης έρχονται από mock δεδομένα και εμφανίζονται σαν διαθέσιμες επιλογές όσο γράφει ο χρήστης.
+              Το ΣΥΝ ΜΕΡΕΣ υπολογίζεται μόνο για την Τοποθέτηση αφαιρώντας τυχόν
+              ημέρες Απόσπασης του ίδιου στελέχους.
             </p>
           </div>
         </div>
@@ -235,27 +263,29 @@ export default function ProsopikoForm() {
               activeSuggestions.length > 0 ? 'pb-44' : ''
             }`}
           >
-            <table className="w-full min-w-[1280px] border-collapse text-[10px] text-slate-800 md:text-[11px] xl:min-w-0">
+            <table className="w-full min-w-[1460px] border-collapse text-[10px] text-slate-800 md:text-[11px] xl:min-w-0">
               <colgroup>
                 <col className="w-[6%]" />
                 <col className="w-[4.5%]" />
                 <col className="w-[8%]" />
                 <col className="w-[8%]" />
                 <col className="w-[6%]" />
-                <col className="w-[11%]" />
-                <col className="w-[10%]" />
-                <col className="w-[11%]" />
-                <col className="w-[10%]" />
+                <col className="w-[10.5%]" />
+                <col className="w-[9.5%]" />
+                <col className="w-[10.5%]" />
+                <col className="w-[9.5%]" />
                 <col className="w-[6.5%]" />
                 <col className="w-[6.5%]" />
-                <col className="w-[16%]" />
+                <col className="w-[7.5%]" />
+                <col className="w-[15%]" />
                 <col className="w-[5.5%]" />
+                <col className="w-[6.5%]" />
               </colgroup>
 
               <thead>
                 <tr>
                   <th
-                    colSpan={13}
+                    colSpan={15}
                     className="border border-slate-400 bg-slate-200 px-3 py-3 text-center text-sm font-bold tracking-wide"
                   >
                     ΠΡΟΣΩΠΙΚΟ
@@ -281,25 +311,23 @@ export default function ProsopikoForm() {
                   </th>
                   <th className="border border-slate-400 px-2 py-2.5 text-center font-bold leading-tight">ΑΠΟ</th>
                   <th className="border border-slate-400 px-2 py-2.5 text-center font-bold leading-tight">ΕΩΣ</th>
+                  <th className="border border-slate-400 px-2 py-2.5 text-center font-bold leading-tight">ΕΙΔΟΣ</th>
                   <th className="border border-slate-400 bg-amber-50 px-2 py-2.5 text-center font-bold leading-tight">
                     Ταξινόμηση κατά Κώδικα Πίνακα 1 και του Πίνακα 6.2
                   </th>
                   <th className="border border-slate-400 px-2 py-2.5 text-center font-bold leading-tight">ΗΜΕΡΕΣ</th>
+                  <th className="border border-slate-400 bg-sky-100 px-2 py-2.5 text-center font-bold leading-tight">
+                    ΣΥΝ ΜΕΡΕΣ
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
                 {rows.map((row) => {
-                  const hasError =
-                    validationMessage &&
-                    (row.taxinomisiKodikaPinaka1Kai62.trim().length === 0 ||
-                      !isValidClassificationCode(row.taxinomisiKodikaPinaka1Kai62.trim()) ||
-                      !hasMatchingClassificationOption(
-                        row.taxinomisiKodikaPinaka1Kai62.trim(),
-                        classificationOptions,
-                      ));
+                  const hasError = invalidRowIds.includes(row.id);
                   const isActiveRow = activeRowId === row.id;
                   const showSuggestions = isActiveRow && activeSuggestions.length > 0;
+                  const netDays = calculateNetDays(row, rows);
 
                   return (
                     <tr key={row.id} className="bg-white">
@@ -326,6 +354,9 @@ export default function ProsopikoForm() {
                       <td className="border border-slate-300 px-2 py-2 text-center align-middle">
                         {formatDate(row.eos)}
                       </td>
+                      <td className="border border-slate-300 bg-cyan-50 px-2 py-2 text-center font-semibold align-middle">
+                        {row.movementType}
+                      </td>
                       <td
                         className={`relative border px-2 py-1.5 align-top ${
                           hasError ? 'border-rose-300 bg-rose-50' : 'border-slate-300 bg-amber-50'
@@ -338,7 +369,7 @@ export default function ProsopikoForm() {
                             pattern="[0-9.]*"
                             value={row.taxinomisiKodikaPinaka1Kai62}
                             onChange={handleClassificationChange(row.id)}
-                            onFocus={() => setActiveRowId(row.id)}
+                            onFocus={() => handleClassificationFocus(row.id)}
                             onBlur={() => handleClassificationBlur(row.id)}
                             placeholder="π.χ. 1.2.3"
                             className="w-full rounded bg-transparent px-2 py-1 text-[10px] outline-none ring-1 ring-transparent placeholder:text-slate-400 focus:bg-cyan-50 focus:ring-cyan-200 md:text-[11px]"
@@ -370,6 +401,9 @@ export default function ProsopikoForm() {
                       </td>
                       <td className="border border-slate-300 bg-sky-50 px-2 py-2 text-center font-semibold align-middle">
                         {row.imeres}
+                      </td>
+                      <td className="border border-slate-300 bg-sky-100 px-2 py-2 text-center font-bold align-middle">
+                        {netDays ?? '-'}
                       </td>
                     </tr>
                   );

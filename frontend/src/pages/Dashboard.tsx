@@ -25,7 +25,6 @@ function DashboardHome() {
       return;
     }
 
-    setToastMessage(state.successMessage);
     const enterTimer = window.setTimeout(() => {
       setIsToastVisible(true);
     }, 20);
