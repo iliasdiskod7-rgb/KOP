@@ -1,5 +1,6 @@
 import ProsopikoForm from './prosopiko/ProsopikoForm';
 import Ypodeigma3Form from './ypodeigma3/Ypodeigma3Form';
+import Ypodeigma4Form from './ypodeigma4/Ypodeigma4Form';
 import Ypodeigma2Form from './ypodeigma2/Ypodeigma2Form';
 
 interface DynamicFormProps {
@@ -13,6 +14,10 @@ export default function DynamicForm({ id }: DynamicFormProps) {
 
   if (id === 3) {
     return <Ypodeigma3Form />;
+  }
+
+  if (id === 4) {
+    return <Ypodeigma4Form />;
   }
 
   if (id === 22) {

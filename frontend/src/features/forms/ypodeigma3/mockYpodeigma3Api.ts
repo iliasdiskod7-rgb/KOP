@@ -9,6 +9,8 @@ import type { Ypodeigma3Config, Ypodeigma3EntryScope, Ypodeigma3Moira, Ypodeigma
 const MOCK_MOIRES: Ypodeigma3Moira[] = [
   { id: '337m', label: '337Μ', displayOrder: 1 },
   { id: '338m', label: '338Μ', displayOrder: 2 },
+  { id: '339m', label: '339Μ', displayOrder: 3 },
+  { id: '340m', label: '340Μ', displayOrder: 4 },
 ];
 
 const MOCK_ROW_DEFINITIONS: Array<{

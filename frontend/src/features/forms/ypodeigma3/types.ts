@@ -25,3 +25,20 @@ export type Ypodeigma3Config = {
   moires: Ypodeigma3Moira[];
   rows: Ypodeigma3Row[];
 };
+
+export type Ypodeigma3SaveRow = {
+  rowId: string;
+  code: string;
+  entryScope: Ypodeigma3EntryScope;
+  values: Record<string, number | null>;
+};
+
+export type Ypodeigma3SaveRequest = {
+  unitId: string;
+  rows: Ypodeigma3SaveRow[];
+};
+
+export type Ypodeigma3SaveResponse = {
+  submissionId: string;
+  status: 'saved';
+};
