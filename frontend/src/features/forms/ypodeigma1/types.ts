@@ -18,8 +18,9 @@ export type Ypodeigma1MoiraData = {
   moiraId: string;
   moiraLabel: string;
   etos: number | null;
-  tableARows: Ypodeigma1TableARow[];
-  tableBRows: Ypodeigma1TableBRow[];
+  status: 'editable' | 'view';
+  table1ARows: Ypodeigma1TableARow[];
+  table1BRows: Ypodeigma1TableBRow[];
 };
 
 export type Ypodeigma1MoiraCacheEntry = {
@@ -28,8 +29,9 @@ export type Ypodeigma1MoiraCacheEntry = {
   moiraId: string;
   moiraLabel: string;
   etos: number | null;
-  tableARows: Ypodeigma1TableARow[];
-  tableBRows: Ypodeigma1TableBRow[];
+  status: 'editable' | 'view';
+  table1ARows: Ypodeigma1TableARow[];
+  table1BRows: Ypodeigma1TableBRow[];
 };
 
 export type Ypodeigma1CacheByMoira = Record<string, Ypodeigma1MoiraCacheEntry>;
@@ -38,6 +40,8 @@ export type FetchYpodeigma1ForMoiraParams = {
   monadaId: string;
   moiraId: string;
   etos: number | null;
+  etosStatus: 'editable' | 'view' | null;
+  etosSource: 'existing' | 'new' | null;
 };
 
 export type Ypodeigma1SavePayload = {
@@ -46,8 +50,8 @@ export type Ypodeigma1SavePayload = {
   moires: Array<{
     moiraId: string;
     monadaId: string;
-    tableARows: Ypodeigma1TableARow[];
-    tableBRows: Ypodeigma1TableBRow[];
+    table1ARows: Ypodeigma1TableARow[];
+    table1BRows: Ypodeigma1TableBRow[];
   }>;
 };
 

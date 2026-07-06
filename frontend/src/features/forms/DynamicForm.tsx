@@ -18,6 +18,8 @@ const EMPTY_CONTROLS_VALUE: YpodeigmaControlsValue = {
   moiraId: null,
   etos: null,
   neoEtos: '',
+  etosStatus: null,
+  etosSource: null,
 };
 
 const EMPTY_CONTROLS_OPTIONS: YpodeigmaControlsOptions = {
@@ -35,6 +37,44 @@ const EMPTY_YPODEIGMA1_ACTIONS: Ypodeigma1FormActions = {
   },
 };
 
+function getFirstMonadaId(options: YpodeigmaControlsOptions): string | null {
+  return options.monades[0]?.id ?? null;
+}
+
+function getFirstMoiraIdForMonada(
+  options: YpodeigmaControlsOptions,
+  monadaId: string | null,
+): string | null {
+  if (!monadaId) {
+    return null;
+  }
+
+  return options.moires.find((moira) => moira.parentId === monadaId)?.id ?? null;
+}
+
+function isMoiraValidForMonada(
+  options: YpodeigmaControlsOptions,
+  monadaId: string | null,
+  moiraId: string | null,
+): boolean {
+  if (!monadaId || !moiraId) {
+    return false;
+  }
+
+  return options.moires.some((moira) => moira.id === moiraId && moira.parentId === monadaId);
+}
+
+function getYearStatus(
+  options: YpodeigmaControlsOptions,
+  etos: number | null,
+): YpodeigmaControlsValue['etosStatus'] {
+  if (!etos) {
+    return null;
+  }
+
+  return options.etoi.find((option) => option.value === etos)?.status ?? null;
+}
+
 export default function DynamicForm({ id }: DynamicFormProps) {
   const [controlsValue, setControlsValue] = useState<YpodeigmaControlsValue>(EMPTY_CONTROLS_VALUE);
   const [controlsOptions, setControlsOptions] =
@@ -42,6 +82,25 @@ export default function DynamicForm({ id }: DynamicFormProps) {
   const [isControlsLoading, setIsControlsLoading] = useState(true);
   const [ypodeigma1Actions, setYpodeigma1Actions] =
     useState<Ypodeigma1FormActions>(EMPTY_YPODEIGMA1_ACTIONS);
+
+  const handleControlsChange = (nextValue: YpodeigmaControlsValue) => {
+    let nextMonadaId = nextValue.monadaId;
+    let nextMoiraId = nextValue.moiraId;
+
+    if (nextValue.etos && !nextMonadaId) {
+      nextMonadaId = getFirstMonadaId(controlsOptions);
+    }
+
+    if (nextMonadaId && !isMoiraValidForMonada(controlsOptions, nextMonadaId, nextMoiraId)) {
+      nextMoiraId = getFirstMoiraIdForMonada(controlsOptions, nextMonadaId);
+    }
+
+    setControlsValue({
+      ...nextValue,
+      monadaId: nextMonadaId,
+      moiraId: nextMoiraId,
+    });
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -57,6 +116,28 @@ export default function DynamicForm({ id }: DynamicFormProps) {
         }
 
         setControlsOptions(nextOptions);
+        setControlsValue((currentValue) => {
+          let nextMonadaId = currentValue.monadaId;
+          let nextMoiraId = currentValue.moiraId;
+
+          if (currentValue.etos && !nextMonadaId) {
+            nextMonadaId = getFirstMonadaId(nextOptions);
+          }
+
+          if (!isMoiraValidForMonada(nextOptions, nextMonadaId, nextMoiraId)) {
+            nextMoiraId = getFirstMoiraIdForMonada(nextOptions, nextMonadaId);
+          }
+
+          return {
+            ...currentValue,
+            monadaId: nextMonadaId,
+            moiraId: nextMoiraId,
+            etosStatus:
+              currentValue.etosSource === 'existing'
+                ? getYearStatus(nextOptions, currentValue.etos)
+                : currentValue.etosStatus,
+          };
+        });
       } finally {
         if (isMounted) {
           setIsControlsLoading(false);
@@ -76,7 +157,18 @@ export default function DynamicForm({ id }: DynamicFormProps) {
   };
 
   const handleStartNewYear = () => {
-    console.log('Έναρξη νέου έτους υποδείγματος', controlsValue);
+    const parsedYear = Number(controlsValue.neoEtos);
+
+    if (!Number.isInteger(parsedYear) || parsedYear <= 0) {
+      return;
+    }
+
+    handleControlsChange({
+      ...controlsValue,
+      etos: parsedYear,
+      etosStatus: 'editable',
+      etosSource: 'new',
+    });
   };
 
   const handleTemporarySave = () => {
@@ -112,11 +204,21 @@ export default function DynamicForm({ id }: DynamicFormProps) {
         selectedMoiraId={controlsValue.moiraId}
         selectedMoiraLabel={selectedMoiraLabel}
         selectedEtos={controlsValue.etos}
+        selectedEtosStatus={controlsValue.etosStatus}
+        selectedEtosSource={controlsValue.etosSource}
         onRegisterActions={setYpodeigma1Actions}
       />
     );
   } else if (id === 2) {
-    formContent = <Ypodeigma2Form />;
+    formContent = (
+      <Ypodeigma2Form
+        selectedMoiraId={controlsValue.moiraId}
+        selectedMoiraLabel={selectedMoiraLabel}
+        selectedEtos={controlsValue.etos}
+        selectedEtosStatus={controlsValue.etosStatus}
+        selectedEtosSource={controlsValue.etosSource}
+      />
+    );
   } else if (id === 3) {
     formContent = <Ypodeigma3Form />;
   } else if (id === 4) {
@@ -138,7 +240,7 @@ export default function DynamicForm({ id }: DynamicFormProps) {
         value={controlsValue}
         options={controlsOptions}
         isLoading={isControlsLoading}
-        onChange={setControlsValue}
+        onChange={handleControlsChange}
         onRetrieve={handleRetrieve}
         onStartNewYear={handleStartNewYear}
         onTemporarySave={handleTemporarySave}

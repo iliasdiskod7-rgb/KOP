@@ -1,5 +1,6 @@
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, type ChangeEvent, type FC } from 'react';
 import {
+  blockInvalidNumberInput,
   calculateCellValue,
   calculateHierarchicalAleColumnTotal,
   calculateHierarchicalGrandTotal,
@@ -75,16 +76,29 @@ function buildTopTableColumnCount(leftColumnCount: number, moires: Ypodeigma2Moi
   return leftColumnCount + moires.reduce((count, moira) => count + moira.ales.length + 1, 0);
 }
 
-type ConfirmAction = 'save-draft' | 'submit-final' | null;
-
 type Props = {
   rows: Ypodeigma2Row[];
   section1BRows: Ypodeigma2Row[];
   section1BTitle: string;
   section: Ypodeigma2SectionConfig;
-  onBack: () => void;
-  onSaveDraft: () => void;
-  onSubmitFinal: () => void;
+  isEditable: boolean;
+  onSection1AAmountChange: (
+    rowId: Ypodeigma2Row['id'],
+    moiraId: string | number,
+    aleId: string | number,
+    rawValue: string,
+  ) => void;
+  onSection1BAmountChange: (
+    rowId: Ypodeigma2Row['id'],
+    moiraId: string | number,
+    aleId: string | number,
+    rawValue: string,
+  ) => void;
+  onSection1BTextChange: (
+    rowId: Ypodeigma2Row['id'],
+    field: 'code' | 'costElementTitle',
+    value: string,
+  ) => void;
 };
 
 const Ypodeigma2ReviewTable: FC<Props> = ({
@@ -92,11 +106,11 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
   section1BRows,
   section1BTitle,
   section,
-  onBack,
-  onSaveDraft,
-  onSubmitFinal,
+  isEditable,
+  onSection1AAmountChange,
+  onSection1BAmountChange,
+  onSection1BTextChange,
 }) => {
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const analysisLevels = useMemo(
     () => [...section.analysisLevels].sort((left, right) => left.displayOrder - right.displayOrder),
     [section.analysisLevels],
@@ -118,26 +132,11 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
   );
   const combinedGrandTotal = section1AGrandTotal + section1BGrandTotal;
 
-  const confirmModalCopy =
-    confirmAction === 'submit-final'
-      ? {
-          title: 'Οριστική Υποβολή',
-          description:
-            'Η υποβολή θα καταχωρηθεί ως οριστικά υποβληθείσα και θα εμφανιστεί στην ενότητα "ΥΠΟΒΛΗΘΕΙΣΕΣ". Θέλεις να συνεχίσουμε;',
-          buttonLabel: 'Ναι, οριστική υποβολή',
-          onConfirm: onSubmitFinal,
-          buttonClass:
-            'rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-sky-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-1',
-        }
-      : {
-          title: 'Αποθήκευση',
-          description:
-            'Η υποβολή θα αποθηκευτεί προσωρινά και θα εμφανιστεί στην ενότητα "ΠΡΟΣ ΥΠΟΒΟΛΗ". Θέλεις να συνεχίσουμε;',
-          buttonLabel: 'Ναι, αποθήκευση',
-          onConfirm: onSaveDraft,
-          buttonClass:
-            'rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-1',
-        };
+  const handleSection1BTextInput =
+    (rowId: Ypodeigma2Row['id'], field: 'code' | 'costElementTitle') =>
+    (event: ChangeEvent<HTMLInputElement>) => {
+      onSection1BTextChange(rowId, field, event.target.value);
+    };
 
   return (
     <div className="space-y-6 p-4">
@@ -146,7 +145,7 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-300 bg-slate-50">
-        <table className="min-w-max border-collapse text-[11px] text-slate-800">
+        <table className="w-full table-fixed border-collapse text-[11px] text-slate-800">
           <colgroup>
             <col className="w-24" />
             {analysisLevels.map((level) => (
@@ -252,6 +251,7 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
           <tbody>
             {rows.map((row) => {
               const depth = getRowDepth(row.code);
+              const leafRow = isLeafRow(row, rows);
 
               return (
                 <tr key={`top-row-${row.id}`} className="bg-white">
@@ -270,26 +270,44 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
                     <div style={{ paddingLeft: `${depth * 12}px` }}>{row.costElementTitle}</div>
                   </td>
 
-                {section.moires.flatMap((moira) => [
-                  ...moira.ales.map((ale) => (
+                  {section.moires.flatMap((moira) => [
+                    ...moira.ales.map((ale) => {
+                      const amountKey = getAmountKey(moira.id, ale.id);
+                      const value = row.values[amountKey];
+
+                      return (
+                        <td
+                          key={`top-${row.id}-${moira.id}-${ale.id}`}
+                          className={`border border-slate-300 px-2 py-1.5 text-right ${
+                            leafRow ? 'bg-white' : 'bg-sky-100'
+                          }`}
+                        >
+                          {leafRow ? (
+                            <input
+                              type="number"
+                              value={value ?? ''}
+                              onKeyDown={blockInvalidNumberInput}
+                              onChange={(event) =>
+                                onSection1AAmountChange(row.id, moira.id, ale.id, event.target.value)
+                              }
+                              disabled={!isEditable}
+                              className={`w-full appearance-none bg-transparent text-right text-[11px] outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                                isEditable ? 'focus:bg-cyan-50' : 'cursor-not-allowed text-slate-500'
+                              }`}
+                            />
+                          ) : null}
+                        </td>
+                      );
+                    }),
                     <td
-                      key={`top-${row.id}-${moira.id}-${ale.id}`}
-                      className={`border border-slate-300 px-2 py-1.5 text-right ${
-                        isLeafRow(row, rows) ? 'bg-white' : 'bg-sky-100'
+                      key={`top-${row.id}-${moira.id}-syn`}
+                      className={`border border-slate-300 px-3 py-2 text-right font-bold text-slate-800 ${
+                        leafRow ? 'bg-orange-50' : 'bg-sky-100'
                       }`}
                     >
-                      {isLeafRow(row, rows) ? formatAmount(calculateCellValue(row, rows, moira.id, ale.id)) : ''}
-                    </td>
-                  )),
-                  <td
-                    key={`top-${row.id}-${moira.id}-syn`}
-                    className={`border border-slate-300 px-3 py-2 text-right font-bold text-slate-800 ${
-                      isLeafRow(row, rows) ? 'bg-orange-50' : 'bg-sky-100'
-                    }`}
-                  >
-                    {isLeafRow(row, rows) ? formatAmount(calculateHierarchicalRowTotal(row, rows, [moira])) : ''}
-                  </td>,
-                ])}
+                      {isLeafRow(row, rows) ? formatAmount(calculateHierarchicalRowTotal(row, rows, [moira])) : ''}
+                    </td>,
+                  ])}
                 </tr>
               );
             })}
@@ -298,8 +316,7 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
               <td
                 colSpan={leftColumnCount}
                 className="border border-slate-400 px-3 py-3 text-right font-bold uppercase tracking-wide"
-              >
-              </td>
+              />
 
               {section.moires.flatMap((moira) => [
                 ...moira.ales.map((ale) => (
@@ -330,8 +347,7 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
               <td
                 colSpan={section.moires.reduce((count, moira) => count + moira.ales.length, 0)}
                 className="border border-slate-400 px-3 py-3 text-right font-semibold text-slate-700"
-              >
-              </td>
+              />
 
               <td
                 colSpan={section.moires.length}
@@ -432,10 +448,21 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
           <tbody>
             {section1BRows.map((row) => {
               const depth = getRowDepth(row.code);
+              const leafRow = isLeafRow(row, section1BRows);
 
               return (
                 <tr key={row.id} className="bg-white">
-                  <td className="border border-slate-300 px-3 py-2 text-center font-semibold">{row.code}</td>
+                  <td className="border border-slate-300 px-2 py-1.5">
+                    <input
+                      type="text"
+                      value={row.code}
+                      onChange={handleSection1BTextInput(row.id, 'code')}
+                      disabled={!isEditable}
+                      className={`w-full bg-transparent text-center font-semibold outline-none ${
+                        isEditable ? 'focus:bg-cyan-50' : 'cursor-not-allowed text-slate-500'
+                      }`}
+                    />
+                  </td>
 
                   {analysisLevels.map((level) => (
                     <td
@@ -446,29 +473,57 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
                     </td>
                   ))}
 
-                  <td className="border border-slate-300 px-2 py-2 text-[11px] leading-tight">
-                    <div style={{ paddingLeft: `${depth * 12}px` }}>{row.costElementTitle}</div>
+                  <td className="border border-slate-300 px-2 py-1.5">
+                    <div style={{ paddingLeft: `${depth * 12}px` }}>
+                      <input
+                        type="text"
+                        value={row.costElementTitle}
+                        onChange={handleSection1BTextInput(row.id, 'costElementTitle')}
+                        disabled={!isEditable}
+                        className={`w-full bg-transparent text-[11px] leading-tight outline-none ${
+                          isEditable ? 'focus:bg-cyan-50' : 'cursor-not-allowed text-slate-500'
+                        }`}
+                      />
+                    </div>
                   </td>
 
-                  {reviewAleColumns.map((ale) => (
-                    <td
-                      key={`${row.id}-review-${ale.id}`}
-                      className={`border border-slate-300 px-2 py-1.5 text-right font-semibold text-sky-900 ${
-                        isLeafRow(row, section1BRows) ? 'bg-white' : 'bg-sky-100'
-                      }`}
-                    >
-                      {isLeafRow(row, section1BRows)
-                        ? formatAmount(calculateReviewCellValue(row, ale, section.moires))
-                        : ''}
-                    </td>
-                  ))}
+                  {reviewAleColumns.map((ale) => {
+                    const firstMoira = section.moires[0];
+                    const matchingAle = firstMoira?.ales.find(
+                      (candidate) => candidate.displayOrder === ale.displayOrder,
+                    );
+
+                    return (
+                      <td
+                        key={`${row.id}-review-${ale.id}`}
+                        className={`border border-slate-300 px-2 py-1.5 text-right font-semibold text-sky-900 ${
+                          leafRow ? 'bg-white' : 'bg-sky-100'
+                        }`}
+                      >
+                        {leafRow && firstMoira && matchingAle ? (
+                          <input
+                            type="number"
+                            value={row.values[getAmountKey(firstMoira.id, matchingAle.id)] ?? ''}
+                            onChange={(event) =>
+                              onSection1BAmountChange(row.id, firstMoira.id, matchingAle.id, event.target.value)
+                            }
+                            onKeyDown={blockInvalidNumberInput}
+                            disabled={!isEditable}
+                            className={`w-full appearance-none bg-transparent text-right text-[11px] outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                              isEditable ? 'focus:bg-cyan-50' : 'cursor-not-allowed text-slate-500'
+                            }`}
+                          />
+                        ) : null}
+                      </td>
+                    );
+                  })}
 
                   <td
                     className={`border border-slate-300 px-3 py-2 text-right font-bold text-slate-800 ${
-                      isLeafRow(row, section1BRows) ? 'bg-orange-50' : 'bg-sky-100'
+                      leafRow ? 'bg-orange-50' : 'bg-sky-100'
                     }`}
                   >
-                    {isLeafRow(row, section1BRows)
+                    {leafRow
                       ? formatAmount(calculateReviewRowTotal(row, section1BRows, reviewAleColumns, section.moires))
                       : ''}
                   </td>
@@ -480,8 +535,7 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
               <td
                 colSpan={leftColumnCount}
                 className="border border-slate-400 px-3 py-3 text-right font-bold uppercase tracking-wide"
-              >
-              </td>
+              />
 
               {reviewAleColumns.map((ale) => (
                 <td
@@ -508,8 +562,7 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
               <td
                 colSpan={reviewAleColumns.length}
                 className="border border-slate-400 px-3 py-3 text-right font-semibold text-slate-700"
-              >
-              </td>
+              />
 
               <td className="border border-slate-400 bg-orange-300 px-3 py-3 text-right font-extrabold text-slate-900">
                 {formatAmount(section1BGrandTotal)}
@@ -539,58 +592,6 @@ const Ypodeigma2ReviewTable: FC<Props> = ({
           </div>
         </div>
       </div>
-
-      <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-slate-400 hover:bg-slate-50 hover:shadow"
-        >
-          Πίσω
-        </button>
-        <button
-          type="button"
-          onClick={() => setConfirmAction('save-draft')}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-1"
-        >
-          Αποθήκευση
-        </button>
-        <button
-          type="button"
-          onClick={() => setConfirmAction('submit-final')}
-          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-sky-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-sky-300 focus:ring-offset-1"
-        >
-          Οριστική Υποβολή
-        </button>
-      </div>
-
-      {confirmAction && (
-        <div className="fixed left-0 top-0 z-50 flex h-full w-full items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-md rounded bg-white p-6">
-            <h3 className="mb-2 text-lg font-bold">{confirmModalCopy.title}</h3>
-            <p className="mb-4 text-sm text-slate-700">{confirmModalCopy.description}</p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmAction(null)}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-slate-400 hover:bg-slate-50 hover:shadow"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  confirmModalCopy.onConfirm();
-                  setConfirmAction(null);
-                }}
-                className={confirmModalCopy.buttonClass}
-              >
-                {confirmModalCopy.buttonLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -58,6 +58,8 @@ export default function YpodeigmaControlsPanel({
     () => getFilteredMoires(options.moires, value.monadaId),
     [options.moires, value.monadaId],
   );
+  const hasSelectedYear = value.etos !== null;
+  const shouldShowActions = hasSelectedYear && value.etosStatus !== 'view';
 
   const handleMonadaChange = (nextMonadaId: string) => {
     const normalizedMonadaId = nextMonadaId || null;
@@ -77,68 +79,14 @@ export default function YpodeigmaControlsPanel({
         <div className="mb-7 border-b border-slate-100 pb-5">
           <h2 className="text-xl font-bold text-sky-800">Επιλογή Στοιχείων</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Επίλεξε μονάδα, μοίρα και έτος πριν προχωρήσεις στο υπόδειγμα.
+            Επίλεξε πρώτα το έτος και στη συνέχεια τη μονάδα και τη μοίρα για το υπόδειγμα.
           </p>
         </div>
 
-        <div className="grid gap-7 lg:grid-cols-2">
+        <div className="space-y-5">
           <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-5 shadow-sm">
             <div className="mb-5">
-              <h3 className="text-sm font-semibold text-sky-700">
-              1. Επιλογή Μονάδας και Μοίρας
-              </h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Επιλέξτε την οργανωτική μονάδα και τη μοίρα που αφορά το υπόδειγμα.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-slate-600">Μονάδα</span>
-                <select
-                  className={getControlClassName(isLoading)}
-                  value={value.monadaId ?? ''}
-                  onChange={(event) => handleMonadaChange(event.target.value)}
-                  disabled={isLoading}
-                >
-                  <option value="">Επιλέξτε μονάδα</option>
-                  {options.monades.map((monada) => (
-                    <option key={monada.id} value={monada.id}>
-                      {monada.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-slate-600">Μοίρα</span>
-                <select
-                  className={getControlClassName(isLoading || !value.monadaId)}
-                  value={value.moiraId ?? ''}
-                  onChange={(event) =>
-                    onChange({
-                      ...value,
-                      moiraId: event.target.value || null,
-                    })
-                  }
-                  disabled={isLoading || !value.monadaId}
-                >
-                  <option value="">
-                    {value.monadaId ? 'Επιλέξτε μοίρα' : 'Επίλεξε πρώτα μονάδα'}
-                  </option>
-                  {filteredMoires.map((moira) => (
-                    <option key={moira.id} value={moira.id}>
-                      {moira.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-5 shadow-sm">
-            <div className="mb-5">
-              <h3 className="text-sm font-semibold text-sky-700">2. Επιλογή Έτους</h3>
+              <h3 className="text-sm font-semibold text-sky-700">1. Επιλογή Έτους</h3>
               <p className="mt-1 text-xs leading-5 text-slate-500">
                 Ανακτήστε υπάρχοντα δεδομένα ή ξεκινήστε νέο έτος αναφοράς.
               </p>
@@ -151,10 +99,22 @@ export default function YpodeigmaControlsPanel({
                   className={getControlClassName(isLoading)}
                   value={value.etos ?? ''}
                   onChange={(event) =>
-                    onChange({
-                      ...value,
-                      etos: event.target.value ? Number(event.target.value) : null,
-                    })
+                    onChange(
+                      event.target.value
+                        ? {
+                            ...value,
+                            etos: Number(event.target.value),
+                            etosStatus:
+                              options.etoi.find((etos) => etos.value === Number(event.target.value))?.status ?? null,
+                            etosSource: 'existing',
+                          }
+                        : {
+                            ...value,
+                            etos: null,
+                            etosStatus: null,
+                            etosSource: null,
+                          },
+                    )
                   }
                   disabled={isLoading}
                 >
@@ -203,38 +163,125 @@ export default function YpodeigmaControlsPanel({
                 Έναρξη
               </button>
             </div>
+
+            {value.etos && value.etosStatus ? (
+              <div
+                className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+                  value.etosStatus === 'editable'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-amber-200 bg-amber-50 text-amber-700'
+                }`}
+              >
+                {value.etosSource === 'new'
+                  ? `Το νέο έτος ${value.etos} είναι διαθέσιμο για καταχώριση και είναι editable.`
+                  : value.etosStatus === 'editable'
+                    ? `Το έτος ${value.etos} έχει δεδομένα από το backend και είναι editable.`
+                    : `Το έτος ${value.etos} έχει δεδομένα από το backend και είναι διαθέσιμο μόνο για προβολή.`}
+              </div>
+            ) : null}
           </div>
+
+          {hasSelectedYear ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-5 shadow-sm">
+              <div className="mb-5">
+                <h3 className="text-sm font-semibold text-sky-700">2. Επιλογή Μονάδας και Μοίρας</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Μετά την επιλογή του έτους, επιλέξτε τη μονάδα και τη μοίρα που αφορά το υπόδειγμα.
+                </p>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-600">Μονάδα</span>
+                  <select
+                    className={getControlClassName(isLoading)}
+                    value={value.monadaId ?? ''}
+                    onChange={(event) => handleMonadaChange(event.target.value)}
+                    disabled={isLoading}
+                  >
+                    <option value="">Επιλέξτε μονάδα</option>
+                    {options.monades.map((monada) => (
+                      <option key={monada.id} value={monada.id}>
+                        {monada.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-600">Μοίρα</span>
+                  <select
+                    className={getControlClassName(isLoading || !value.monadaId)}
+                    value={value.moiraId ?? ''}
+                    onChange={(event) =>
+                      onChange({
+                        ...value,
+                        moiraId: event.target.value || null,
+                      })
+                    }
+                    disabled={isLoading || !value.monadaId}
+                  >
+                    <option value="">
+                      {value.monadaId ? 'Επιλέξτε μοίρα' : 'Επίλεξε πρώτα μονάδα'}
+                    </option>
+                    {filteredMoires.map((moira) => (
+                      <option key={moira.id} value={moira.id}>
+                        {moira.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 px-5 py-4 text-sm text-slate-500">
+              Μόλις επιλέξετε έτος, θα εμφανιστεί εδώ η επιλογή μονάδας και μοίρας.
+            </div>
+          )}
         </div>
       </div>
 
-      <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-sky-800">Ενέργειες</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Τα κουμπιά είναι έτοιμα για σύνδεση με κάθε υπόδειγμα στο επόμενο βήμα.
-          </p>
-        </div>
+      {shouldShowActions ? (
+        <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-sky-800">Ενέργειες</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Τα κουμπιά είναι έτοιμα για σύνδεση με κάθε υπόδειγμα στο επόμενο βήμα.
+            </p>
+          </div>
 
-        <div className="space-y-3">
-          <button
-            type="button"
-            onClick={onTemporarySave}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-sky-700"
-          >
-            <PrinterIcon />
-            Προσωρινή Αποθήκευση
-          </button>
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={onTemporarySave}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-sky-700"
+            >
+              <PrinterIcon />
+              Προσωρινή Αποθήκευση
+            </button>
 
-          <button
-            type="button"
-            onClick={onFinalSubmit}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-blue-800"
-          >
-            <PaperPlaneIcon />
-            Οριστική Υποβολή
-          </button>
-        </div>
-      </aside>
+            <button
+              type="button"
+              onClick={onFinalSubmit}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-blue-800"
+            >
+              <PaperPlaneIcon />
+              Οριστική Υποβολή
+            </button>
+          </div>
+        </aside>
+      ) : (
+        <aside className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 p-6 shadow-sm">
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-slate-500">Ενέργειες</h2>
+            <p className="text-sm text-slate-500">
+              {value.etosStatus === 'view'
+                ? 'Οι ενέργειες δεν εμφανίζονται, γιατί το επιλεγμένο έτος είναι μόνο για προβολή και έχει ήδη ολοκληρωθεί.'
+                : 'Οι ενέργειες θα εμφανιστούν μόλις επιλέξετε έτος και στη συνέχεια μονάδα ή μοίρα.'}
+            </p>
+          </div>
+        </aside>
+      )}
     </section>
   );
 }

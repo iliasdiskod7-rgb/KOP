@@ -19,8 +19,8 @@ export function buildYpodeigma1SavePayload({
       .map((entry) => ({
         moiraId: entry.moiraId,
         monadaId: entry.monadaId,
-        tableARows: entry.tableARows,
-        tableBRows: entry.tableBRows,
+        table1ARows: entry.table1ARows,
+        table1BRows: entry.table1BRows,
       })),
   };
 }

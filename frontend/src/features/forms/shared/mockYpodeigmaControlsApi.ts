@@ -9,14 +9,14 @@ const MOCK_OPTIONS: YpodeigmaControlsOptions = {
   moires: [
     { id: '337m-110', name: '337Μ', type: 'moira', parentId: '110pm' },
     { id: '338m-110', name: '338Μ', type: 'moira', parentId: '110pm' },
-    { id: '337m-116', name: '337Μ', type: 'moira', parentId: '116pm' },
-    { id: '338m-116', name: '338Μ', type: 'moira', parentId: '116pm' },
+    { id: '335m-116', name: '335Μ', type: 'moira', parentId: '116pm' },
+    { id: '336m-116', name: '336Μ', type: 'moira', parentId: '116pm' },
     { id: '339m-117', name: '339Μ', type: 'moira', parentId: '117pm' },
   ],
   etoi: [
-    { value: 2024, label: '2024' },
-    { value: 2025, label: '2025' },
-    { value: 2026, label: '2026' },
+    { value: 2024, label: '2024', status: 'view' },
+    { value: 2025, label: '2025', status: 'editable' },
+    { value: 2026, label: '2026', status: 'view' },
   ],
 };
 

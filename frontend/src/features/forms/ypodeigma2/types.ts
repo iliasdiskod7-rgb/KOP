@@ -12,6 +12,7 @@ export type Ypodeigma2AnalysisLevel = {
 export type Ypodeigma2SectionConfig = {
   sectionId: string;
   sectionTitle: string;
+  status: 'editable' | 'view';
   analysisLevels: Ypodeigma2AnalysisLevel[];
   moires: Ypodeigma2Moira[];
   rows: Ypodeigma2Row[];

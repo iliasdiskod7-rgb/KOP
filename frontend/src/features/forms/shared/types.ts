@@ -8,6 +8,7 @@ export type OrgUnitOption = {
 export type EtosOption = {
   value: number;
   label: string;
+  status: 'editable' | 'view';
 };
 
 export type YpodeigmaControlsValue = {
@@ -15,6 +16,8 @@ export type YpodeigmaControlsValue = {
   moiraId: string | null;
   etos: number | null;
   neoEtos: string;
+  etosStatus: 'editable' | 'view' | null;
+  etosSource: 'existing' | 'new' | null;
 };
 
 export type YpodeigmaControlsOptions = {

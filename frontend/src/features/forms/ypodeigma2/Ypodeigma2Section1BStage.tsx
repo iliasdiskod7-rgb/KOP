@@ -1,10 +1,10 @@
 import type { ChangeEvent, FC } from 'react';
 import {
   blockInvalidNumberInput,
-  getAmountKey,
   calculateHierarchicalGrandTotal,
   calculateHierarchicalRowTotal,
   formatTitleCase,
+  getAmountKey,
   getRowDepth,
   isLeafRow,
 } from './helpers';
@@ -30,7 +30,7 @@ function calculateReviewCellValue(row: Ypodeigma2Row, ale: Ypodeigma2Ale, moires
       return total;
     }
 
-    return total + (row.values[`${String(moira.id)}::${String(matchingAle.id)}`] ?? 0);
+    return total + (row.values[getAmountKey(moira.id, matchingAle.id)] ?? 0);
   }, 0);
 }
 
@@ -58,8 +58,6 @@ type Props = {
     aleId: string | number,
     rawValue: string,
   ) => void;
-  onBack: () => void;
-  onContinue: () => void;
 };
 
 const Ypodeigma2Section1BStage: FC<Props> = ({
@@ -69,8 +67,6 @@ const Ypodeigma2Section1BStage: FC<Props> = ({
   sharedConfig,
   onRowTextChange,
   onAmountChange,
-  onBack,
-  onContinue,
 }) => {
   const reviewAleColumns = buildReviewAleColumns(sharedConfig.moires);
   const analysisLevels = [...sharedConfig.analysisLevels].sort(
@@ -294,23 +290,6 @@ const Ypodeigma2Section1BStage: FC<Props> = ({
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <div className="flex items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:border-slate-400 hover:bg-slate-50 hover:shadow"
-        >
-          Πίσω στις Μοίρες
-        </button>
-        <button
-          type="button"
-          onClick={onContinue}
-          className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-amber-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1"
-        >
-          Συνέχεια στο συγκεντρωτικό
-        </button>
       </div>
     </div>
   );
