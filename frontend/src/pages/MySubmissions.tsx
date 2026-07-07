@@ -3,8 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { getStoredYpodeigma2Submissions } from '../features/forms/ypodeigma2/submissionStorage';
 import type { Ypodeigma2Submission, Ypodeigma2SubmissionStatus } from '../features/forms/ypodeigma2/types';
 
+type FlashMessage = {
+  type: 'success' | 'error' | 'info';
+  title: string;
+  description?: string;
+};
+
 type MySubmissionsLocationState = {
   successMessage?: string;
+  flashMessage?: FlashMessage;
 };
 
 function formatAmount(value: number) {
@@ -39,7 +46,7 @@ function getStatusDescription(status: Ypodeigma2SubmissionStatus) {
     case 'submitted':
       return 'Υποβολές που ολοκληρώθηκαν με οριστική υποβολή.';
     case 'returned-for-correction':
-      return 'Υποβολές που επέστρεψαν για διορθώσεις πριν την επανυποβολή.';
+      return 'Υποβολές που επιστράφηκαν για διορθώσεις πριν την επανυποβολή.';
   }
 }
 
@@ -72,6 +79,18 @@ function getStatusAccent(status: Ypodeigma2SubmissionStatus) {
         header: 'from-rose-50 to-pink-50',
       };
   }
+}
+
+function getFlashMessageClasses(type: FlashMessage['type']) {
+  if (type === 'success') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-800';
+  }
+
+  if (type === 'error') {
+    return 'border-rose-200 bg-rose-50 text-rose-800';
+  }
+
+  return 'border-sky-200 bg-sky-50 text-sky-800';
 }
 
 function SubmissionSection({
@@ -137,9 +156,8 @@ function SubmissionSection({
 export default function MySubmissions() {
   const location = useLocation();
   const navigate = useNavigate();
-  const state = (location.state ?? {}) as MySubmissionsLocationState;
-  const [toastMessage, setToastMessage] = useState(state.successMessage ?? '');
-  const [isToastVisible, setIsToastVisible] = useState(false);
+  const state = (location.state ?? null) as MySubmissionsLocationState | null;
+  const [flashMessage, setFlashMessage] = useState<FlashMessage | null>(null);
   const [submissions, setSubmissions] = useState(() => getStoredYpodeigma2Submissions());
 
   useEffect(() => {
@@ -147,34 +165,28 @@ export default function MySubmissions() {
   }, [location.key]);
 
   useEffect(() => {
-    setToastMessage(state.successMessage ?? '');
-    setIsToastVisible(false);
-  }, [state.successMessage]);
-
-  useEffect(() => {
-    if (!state.successMessage) {
+    if (!state?.successMessage && !state?.flashMessage) {
       return;
     }
 
-    const enterTimer = window.setTimeout(() => {
-      setIsToastVisible(true);
-    }, 20);
+    const nextMessage: FlashMessage =
+      state.flashMessage ?? {
+        type: 'success',
+        title: state.successMessage ?? '',
+      };
 
-    const fadeTimer = window.setTimeout(() => {
-      setIsToastVisible(false);
-    }, 2500);
+    setFlashMessage(nextMessage);
 
-    const cleanupTimer = window.setTimeout(() => {
-      setToastMessage('');
-      navigate(location.pathname, { replace: true, state: null });
-    }, 10000);
+    navigate(location.pathname, { replace: true, state: null });
+
+    const timeoutId = window.setTimeout(() => {
+      setFlashMessage(null);
+    }, 4000);
 
     return () => {
-      window.clearTimeout(enterTimer);
-      window.clearTimeout(fadeTimer);
-      window.clearTimeout(cleanupTimer);
+      window.clearTimeout(timeoutId);
     };
-  }, [location.pathname, navigate, state.successMessage]);
+  }, [location.pathname, navigate, state]);
 
   const pendingSubmissions = useMemo(
     () => submissions.filter((submission) => submission.status === 'pending-submission'),
@@ -191,32 +203,17 @@ export default function MySubmissions() {
 
   return (
     <section className="space-y-6">
-      {toastMessage ? (
-        <div className="pointer-events-none fixed inset-x-0 top-24 z-50 flex justify-center px-4">
-          <div
-            className={`relative w-full max-w-2xl overflow-hidden rounded-[28px] border border-emerald-200 bg-white/95 shadow-2xl backdrop-blur transition-all duration-500 ease-out ${
-              isToastVisible ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
-            }`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-50 via-white to-cyan-50" />
-            <div className="relative flex items-center gap-4 px-6 py-5 sm:px-7 sm:py-6">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-3xl font-black text-emerald-600 shadow-inner">
-                ✓
-              </div>
-              <div className="min-w-0">
-                <div className="text-base font-bold tracking-wide text-emerald-700">Ενημέρωση Υποβολής</div>
-                <div className="mt-1 text-sm leading-6 text-slate-700">{toastMessage}</div>
-              </div>
-            </div>
-          </div>
+      {flashMessage ? (
+        <div className={`rounded-2xl border px-5 py-4 text-sm shadow-sm ${getFlashMessageClasses(flashMessage.type)}`}>
+          <p className="font-semibold">{flashMessage.title}</p>
+          {flashMessage.description ? <p className="mt-1">{flashMessage.description}</p> : null}
         </div>
       ) : null}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
         <h1 className="text-2xl font-bold text-slate-800">Οι Υποβολές μου</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Εδώ εμφανίζονται όλες οι υποβολές του Υποδείγματος 2, χωρισμένες ανά κατάσταση, μέχρι να συνδεθεί πλήρως η
-          ροή με το backend.
+          Εδώ εμφανίζονται όλες οι υποβολές του Υποδείγματος 2, χωρισμένες ανά κατάσταση.
         </p>
       </div>
 

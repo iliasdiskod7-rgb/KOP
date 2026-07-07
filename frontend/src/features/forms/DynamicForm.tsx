@@ -38,12 +38,8 @@ const EMPTY_CONTROLS_OPTIONS: YpodeigmaControlsOptions = {
 };
 
 const EMPTY_YPODEIGMA1_ACTIONS: Ypodeigma1FormActions = {
-  saveDraft: () => {
-    console.log('Δεν υπάρχουν ακόμη δεδομένα προς αποθήκευση για το Υπόδειγμα 1.');
-  },
-  submitFinal: () => {
-    console.log('Δεν υπάρχουν ακόμη δεδομένα προς υποβολή για το Υπόδειγμα 1.');
-  },
+  saveDraft: () => {},
+  submitFinal: () => {},
 };
 
 function getFirstMonadaId(options: YpodeigmaControlsOptions): string | null {
@@ -136,6 +132,14 @@ function buildSubmissionSuccessMessage(destinationLabel: string, context: string
   return `Η εγγραφή για ${context} αποθηκεύτηκε επιτυχώς και μεταφέρθηκε στην κατηγορία ${destinationLabel}.`;
 }
 
+function buildFlashMessage(title: string, description: string) {
+  return {
+    type: 'success' as const,
+    title,
+    description,
+  };
+}
+
 export default function DynamicForm({ id, role }: DynamicFormProps) {
   const navigate = useNavigate();
   const [controlsValue, setControlsValue] = useState<YpodeigmaControlsValue>(EMPTY_CONTROLS_VALUE);
@@ -145,23 +149,16 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
   const [isStartingNewYear, setIsStartingNewYear] = useState(false);
   const [isActionRunning, setIsActionRunning] = useState(false);
   const [actionMessage, setActionMessage] = useState<ActionMessage | null>(null);
-  const [ypodeigma1Actions, setYpodeigma1Actions] =
-    useState<Ypodeigma1FormActions>(EMPTY_YPODEIGMA1_ACTIONS);
   const [ypodeigma2ReturnAction, setYpodeigma2ReturnAction] = useState<(() => void) | null>(null);
-  const [ypodeigma2SaveDraftAction, setYpodeigma2SaveDraftAction] = useState<(() => void) | null>(null);
-  const [ypodeigma2SubmitFinalAction, setYpodeigma2SubmitFinalAction] = useState<(() => void) | null>(null);
+  const [, setYpodeigma1Actions] = useState<Ypodeigma1FormActions>(EMPTY_YPODEIGMA1_ACTIONS);
 
   const handleRegisterYpodeigma2ReturnAction = (action: (() => void) | null) => {
     setYpodeigma2ReturnAction(() => action);
   };
 
-  const handleRegisterYpodeigma2SaveDraftAction = (action: (() => void) | null) => {
-    setYpodeigma2SaveDraftAction(() => action);
-  };
+  const handleRegisterYpodeigma2SaveDraftAction = (_action: (() => void) | null) => {};
 
-  const handleRegisterYpodeigma2SubmitFinalAction = (action: (() => void) | null) => {
-    setYpodeigma2SubmitFinalAction(() => action);
-  };
+  const handleRegisterYpodeigma2SubmitFinalAction = (_action: (() => void) | null) => {};
 
   const handleControlsChange = (nextValue: YpodeigmaControlsValue) => {
     let nextMonadaId = nextValue.monadaId;
@@ -395,79 +392,9 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
     }
   };
 
-  const handleTemporarySave = async () => {
-    const context = buildSelectionContext(id, controlsOptions, controlsValue);
+  const handleTemporarySave = async () => {};
 
-    if (id === 1) {
-      await handleActionExecution({
-        action: ypodeigma1Actions.saveDraft,
-        successTitle: 'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-        successDescription: `Τα στοιχεία αποθηκεύτηκαν επιτυχώς για ${context}.`,
-      });
-      return;
-    }
-
-    if (id === 2) {
-      const isSuccess = await handleActionExecution({
-        action: ypodeigma2SaveDraftAction,
-        successTitle: 'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-        successDescription: `Η εγγραφή για ${context} αποθηκεύτηκε στην κατηγορία ΠΡΟΣ ΥΠΟΒΟΛΗ.`,
-      });
-
-      if (isSuccess) {
-        navigate('/dashboard/my-submissions', {
-          state: {
-            successMessage: buildSubmissionSuccessMessage('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
-          },
-        });
-      }
-
-      return;
-    }
-
-    setActionMessage({
-      type: 'info',
-      title: 'Η προσωρινή αποθήκευση δεν είναι ακόμη διαθέσιμη.',
-      description: `Το ${getYpodeigmaLabel(id)} δεν έχει συνδεθεί ακόμη με διαδικασία προσωρινής αποθήκευσης.`,
-    });
-  };
-
-  const handleFinalSubmit = async () => {
-    const context = buildSelectionContext(id, controlsOptions, controlsValue);
-
-    if (id === 1) {
-      await handleActionExecution({
-        action: ypodeigma1Actions.submitFinal,
-        successTitle: 'Η οριστική υποβολή ολοκληρώθηκε.',
-        successDescription: `Η εγγραφή για ${context} υποβλήθηκε επιτυχώς.`,
-      });
-      return;
-    }
-
-    if (id === 2) {
-      const isSuccess = await handleActionExecution({
-        action: ypodeigma2SubmitFinalAction,
-        successTitle: 'Η οριστική υποβολή ολοκληρώθηκε.',
-        successDescription: `Η εγγραφή για ${context} μεταφέρθηκε στην κατηγορία ΥΠΟΒΛΗΘΕΙΣΕΣ.`,
-      });
-
-      if (isSuccess) {
-        navigate('/dashboard/my-submissions', {
-          state: {
-            successMessage: buildSubmissionSuccessMessage('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
-          },
-        });
-      }
-
-      return;
-    }
-
-    setActionMessage({
-      type: 'info',
-      title: 'Η οριστική υποβολή δεν είναι ακόμη διαθέσιμη.',
-      description: `Το ${getYpodeigmaLabel(id)} δεν έχει συνδεθεί ακόμη με διαδικασία οριστικής υποβολής.`,
-    });
-  };
+  const handleFinalSubmit = async () => {};
 
   const handleReturnForCorrection = async () => {
     const context = buildSelectionContext(id, controlsOptions, controlsValue);
@@ -482,7 +409,10 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
       if (isSuccess) {
         navigate('/dashboard/my-submissions', {
           state: {
-            successMessage: buildSubmissionSuccessMessage('ΕΠΙΣΤΡΟΦΗ ΓΙΑ ΔΙΟΡΘΩΣΗ', context),
+            flashMessage: buildFlashMessage(
+              'Η επιστροφή για διόρθωση ολοκληρώθηκε.',
+              buildSubmissionSuccessMessage('ΕΠΙΣΤΡΟΦΗ ΓΙΑ ΔΙΟΡΘΩΣΗ', context),
+            ),
           },
         });
       }
