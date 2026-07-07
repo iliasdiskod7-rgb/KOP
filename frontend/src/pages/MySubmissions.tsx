@@ -140,7 +140,16 @@ export default function MySubmissions() {
   const state = (location.state ?? {}) as MySubmissionsLocationState;
   const [toastMessage, setToastMessage] = useState(state.successMessage ?? '');
   const [isToastVisible, setIsToastVisible] = useState(false);
-  const submissions = useMemo(() => getStoredYpodeigma2Submissions(), []);
+  const [submissions, setSubmissions] = useState(() => getStoredYpodeigma2Submissions());
+
+  useEffect(() => {
+    setSubmissions(getStoredYpodeigma2Submissions());
+  }, [location.key]);
+
+  useEffect(() => {
+    setToastMessage(state.successMessage ?? '');
+    setIsToastVisible(false);
+  }, [state.successMessage]);
 
   useEffect(() => {
     if (!state.successMessage) {

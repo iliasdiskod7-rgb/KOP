@@ -2,9 +2,15 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { AppUserRole } from '../../types/auth';
 import ProsopikoForm from './prosopiko/ProsopikoForm';
+import YpodeigmaActionMessage from './shared/YpodeigmaActionMessage';
+import YpodeigmaActionsPanel from './shared/YpodeigmaActionsPanel';
 import YpodeigmaControlsPanel from './shared/YpodeigmaControlsPanel';
-import { fetchYpodeigmaControlsOptions } from './shared/mockYpodeigmaControlsApi';
-import type { YpodeigmaControlsOptions, YpodeigmaControlsValue } from './shared/types';
+import {
+  checkNewEtosAvailability,
+  fetchYpodeigmaControlsOptions,
+  startNewEtos,
+} from './shared/mockYpodeigmaControlsApi';
+import type { ActionMessage, YpodeigmaControlsOptions, YpodeigmaControlsValue } from './shared/types';
 import Ypodeigma1Form from './ypodeigma1/Ypodeigma1Form';
 import type { Ypodeigma1FormActions } from './ypodeigma1/types';
 import Ypodeigma2Form from './ypodeigma2/Ypodeigma2Form';
@@ -78,17 +84,84 @@ function getYearStatus(
   return options.etoi.find((option) => option.value === etos)?.status ?? null;
 }
 
+function getYpodeigmaLabel(id: number) {
+  if (id === 1) {
+    return 'Υπόδειγμα 1';
+  }
+
+  if (id === 2) {
+    return 'Υπόδειγμα 2';
+  }
+
+  if (id === 3) {
+    return 'Υπόδειγμα 3';
+  }
+
+  if (id === 4) {
+    return 'Υπόδειγμα 4';
+  }
+
+  if (id === 22) {
+    return 'Προσωπικό';
+  }
+
+  return `Υπόδειγμα ${id}`;
+}
+
+function buildSelectionContext(
+  id: number,
+  options: YpodeigmaControlsOptions,
+  value: YpodeigmaControlsValue,
+): string {
+  const monadaLabel = options.monades.find((monada) => monada.id === value.monadaId)?.name;
+  const moiraLabel = options.moires.find((moira) => moira.id === value.moiraId)?.name;
+  const parts = [getYpodeigmaLabel(id)];
+
+  if (monadaLabel) {
+    parts.push(`Μονάδα ${monadaLabel}`);
+  }
+
+  if (moiraLabel) {
+    parts.push(`Μοίρα ${moiraLabel}`);
+  }
+
+  if (value.etos) {
+    parts.push(`Έτος ${value.etos}`);
+  }
+
+  return parts.join(' / ');
+}
+
+function buildSubmissionSuccessMessage(destinationLabel: string, context: string) {
+  return `Η εγγραφή για ${context} αποθηκεύτηκε επιτυχώς και μεταφέρθηκε στην κατηγορία ${destinationLabel}.`;
+}
+
 export default function DynamicForm({ id, role }: DynamicFormProps) {
   const navigate = useNavigate();
   const [controlsValue, setControlsValue] = useState<YpodeigmaControlsValue>(EMPTY_CONTROLS_VALUE);
   const [controlsOptions, setControlsOptions] =
     useState<YpodeigmaControlsOptions>(EMPTY_CONTROLS_OPTIONS);
   const [isControlsLoading, setIsControlsLoading] = useState(true);
+  const [isStartingNewYear, setIsStartingNewYear] = useState(false);
+  const [isActionRunning, setIsActionRunning] = useState(false);
+  const [actionMessage, setActionMessage] = useState<ActionMessage | null>(null);
   const [ypodeigma1Actions, setYpodeigma1Actions] =
     useState<Ypodeigma1FormActions>(EMPTY_YPODEIGMA1_ACTIONS);
   const [ypodeigma2ReturnAction, setYpodeigma2ReturnAction] = useState<(() => void) | null>(null);
   const [ypodeigma2SaveDraftAction, setYpodeigma2SaveDraftAction] = useState<(() => void) | null>(null);
   const [ypodeigma2SubmitFinalAction, setYpodeigma2SubmitFinalAction] = useState<(() => void) | null>(null);
+
+  const handleRegisterYpodeigma2ReturnAction = (action: (() => void) | null) => {
+    setYpodeigma2ReturnAction(() => action);
+  };
+
+  const handleRegisterYpodeigma2SaveDraftAction = (action: (() => void) | null) => {
+    setYpodeigma2SaveDraftAction(() => action);
+  };
+
+  const handleRegisterYpodeigma2SubmitFinalAction = (action: (() => void) | null) => {
+    setYpodeigma2SubmitFinalAction(() => action);
+  };
 
   const handleControlsChange = (nextValue: YpodeigmaControlsValue) => {
     let nextMonadaId = nextValue.monadaId;
@@ -160,77 +233,267 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
   }, []);
 
   const handleRetrieve = () => {
-    console.log('Ανάκτηση στοιχείων υποδείγματος', controlsValue);
-  };
-
-  const handleStartNewYear = () => {
-    const parsedYear = Number(controlsValue.neoEtos);
-
-    if (!Number.isInteger(parsedYear) || parsedYear <= 0) {
+    if (!controlsValue.etos) {
+      setActionMessage({
+        type: 'error',
+        title: 'Δεν έγινε ανάκτηση στοιχείων.',
+        description: 'Επιλέξτε πρώτα έτος για να ανακτηθούν τα διαθέσιμα δεδομένα.',
+      });
       return;
     }
+
+    const nextMonadaId = controlsValue.monadaId ?? getFirstMonadaId(controlsOptions);
+    const nextMoiraId = isMoiraValidForMonada(controlsOptions, nextMonadaId, controlsValue.moiraId)
+      ? controlsValue.moiraId
+      : getFirstMoiraIdForMonada(controlsOptions, nextMonadaId);
 
     handleControlsChange({
       ...controlsValue,
-      etos: parsedYear,
-      etosStatus: 'editable',
-      etosSource: 'new',
+      monadaId: nextMonadaId,
+      moiraId: nextMoiraId,
+      etosStatus: controlsValue.etosStatus ?? getYearStatus(controlsOptions, controlsValue.etos),
+      etosSource: controlsValue.etosSource ?? 'existing',
+    });
+
+    setActionMessage({
+      type: 'info',
+      title: 'Η ανάκτηση ολοκληρώθηκε.',
+      description: `Φορτώθηκαν τα διαθέσιμα στοιχεία για ${buildSelectionContext(id, controlsOptions, {
+        ...controlsValue,
+        monadaId: nextMonadaId,
+        moiraId: nextMoiraId,
+      })}.`,
     });
   };
 
-  const handleTemporarySave = () => {
-    if (id === 1) {
-      ypodeigma1Actions.saveDraft();
+  const handleStartNewYear = async () => {
+    if (role === 'admin') {
       return;
     }
 
-    if (id === 2 && ypodeigma2SaveDraftAction) {
-      ypodeigma2SaveDraftAction();
-      navigate('/dashboard/my-submissions', {
-        state: {
-          successMessage: 'Η υποβολή αποθηκεύτηκε και μεταφέρθηκε στην κατηγορία ΠΡΟΣ ΥΠΟΒΟΛΗ.',
-        },
+    const normalizedYear = controlsValue.neoEtos.trim();
+    const parsedYear = Number(normalizedYear);
+    const nextMonadaId = controlsValue.monadaId ?? getFirstMonadaId(controlsOptions);
+
+    if (normalizedYear.length !== 4 || !Number.isInteger(parsedYear) || parsedYear <= 0) {
+      setActionMessage({
+        type: 'error',
+        title: 'Δεν έγινε έναρξη νέου έτους.',
+        description: 'Το νέο έτος πρέπει να έχει ακριβώς 4 ψηφία.',
       });
       return;
     }
 
-    console.log('Προσωρινή αποθήκευση στοιχείων panel', controlsValue);
+    if (!nextMonadaId) {
+      setActionMessage({
+        type: 'error',
+        title: 'Δεν έγινε έναρξη νέου έτους.',
+        description: 'Δεν βρέθηκε διαθέσιμη μονάδα για την έναρξη του νέου έτους.',
+      });
+      return;
+    }
+
+    setActionMessage(null);
+    setIsStartingNewYear(true);
+
+    try {
+      const availability = await checkNewEtosAvailability({
+        ypodeigmaId: id,
+        monadaId: nextMonadaId,
+        etos: parsedYear,
+      });
+
+      if (!availability.isAvailable) {
+        setActionMessage({
+          type: 'error',
+          title: 'Το νέο έτος δεν είναι διαθέσιμο.',
+          description: availability.message,
+        });
+        return;
+      }
+
+      const createdYear = await startNewEtos({
+        ypodeigmaId: id,
+        monadaId: nextMonadaId,
+        etos: parsedYear,
+      });
+
+      const nextMoiraId = getFirstMoiraIdForMonada(controlsOptions, nextMonadaId);
+
+      handleControlsChange({
+        ...controlsValue,
+        monadaId: nextMonadaId,
+        moiraId: nextMoiraId,
+        etos: createdYear.etos,
+        etosStatus: createdYear.status,
+        etosSource: 'new',
+        neoEtos: '',
+      });
+
+      setActionMessage({
+        type: 'success',
+        title: 'Το νέο έτος δημιουργήθηκε επιτυχώς.',
+        description: `Δημιουργήθηκε το έτος ${createdYear.etos} για ${buildSelectionContext(id, controlsOptions, {
+          ...controlsValue,
+          monadaId: nextMonadaId,
+          moiraId: nextMoiraId,
+          etos: createdYear.etos,
+        })}.`,
+      });
+    } catch (error) {
+      console.error(error);
+      setActionMessage({
+        type: 'error',
+        title: 'Αποτυχία έναρξης νέου έτους.',
+        description: 'Προέκυψε σφάλμα κατά τη δημιουργία του νέου έτους. Προσπαθήστε ξανά.',
+      });
+    } finally {
+      setIsStartingNewYear(false);
+    }
   };
 
-  const handleFinalSubmit = () => {
-    if (id === 1) {
-      ypodeigma1Actions.submitFinal();
-      return;
-    }
-
-    if (id === 2 && ypodeigma2SubmitFinalAction) {
-      ypodeigma2SubmitFinalAction();
-      navigate('/dashboard/my-submissions', {
-        state: {
-          successMessage: 'Η υποβολή καταχωρήθηκε οριστικά και μεταφέρθηκε στις ΥΠΟΒΛΗΘΕΙΣΕΣ.',
-        },
+  const handleActionExecution = async ({
+    action,
+    successTitle,
+    successDescription,
+  }: {
+    action: (() => void) | null;
+    successTitle: string;
+    successDescription: string;
+  }): Promise<boolean> => {
+    if (!action) {
+      setActionMessage({
+        type: 'error',
+        title: 'Η ενέργεια δεν είναι διαθέσιμη.',
+        description: 'Δεν υπάρχουν ακόμη διαθέσιμα δεδομένα για την εκτέλεση αυτής της ενέργειας.',
       });
-      return;
+      return false;
     }
 
-    console.log('Οριστική υποβολή στοιχείων panel', controlsValue);
+    setActionMessage(null);
+    setIsActionRunning(true);
+
+    try {
+      await Promise.resolve(action());
+
+      setActionMessage({
+        type: 'success',
+        title: successTitle,
+        description: successDescription,
+      });
+      return true;
+    } catch (error) {
+      console.error(error);
+      setActionMessage({
+        type: 'error',
+        title: 'Η ενέργεια απέτυχε.',
+        description: 'Προέκυψε σφάλμα κατά την αποθήκευση. Προσπαθήστε ξανά.',
+      });
+      return false;
+    } finally {
+      setIsActionRunning(false);
+    }
   };
 
-  const handleReturnForCorrection = () => {
-    if (id === 2 && ypodeigma2ReturnAction) {
-      ypodeigma2ReturnAction();
-      navigate('/dashboard/my-submissions', {
-        state: {
-          successMessage: 'Η υποβολή επιστράφηκε για διόρθωση και μεταφέρθηκε στην αντίστοιχη κατηγορία.',
-        },
+  const handleTemporarySave = async () => {
+    const context = buildSelectionContext(id, controlsOptions, controlsValue);
+
+    if (id === 1) {
+      await handleActionExecution({
+        action: ypodeigma1Actions.saveDraft,
+        successTitle: 'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
+        successDescription: `Τα στοιχεία αποθηκεύτηκαν επιτυχώς για ${context}.`,
       });
       return;
     }
 
-    console.log('Επιστροφή για διόρθωση', {
-      formId: id,
-      role,
-      controlsValue,
+    if (id === 2) {
+      const isSuccess = await handleActionExecution({
+        action: ypodeigma2SaveDraftAction,
+        successTitle: 'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
+        successDescription: `Η εγγραφή για ${context} αποθηκεύτηκε στην κατηγορία ΠΡΟΣ ΥΠΟΒΟΛΗ.`,
+      });
+
+      if (isSuccess) {
+        navigate('/dashboard/my-submissions', {
+          state: {
+            successMessage: buildSubmissionSuccessMessage('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
+          },
+        });
+      }
+
+      return;
+    }
+
+    setActionMessage({
+      type: 'info',
+      title: 'Η προσωρινή αποθήκευση δεν είναι ακόμη διαθέσιμη.',
+      description: `Το ${getYpodeigmaLabel(id)} δεν έχει συνδεθεί ακόμη με διαδικασία προσωρινής αποθήκευσης.`,
+    });
+  };
+
+  const handleFinalSubmit = async () => {
+    const context = buildSelectionContext(id, controlsOptions, controlsValue);
+
+    if (id === 1) {
+      await handleActionExecution({
+        action: ypodeigma1Actions.submitFinal,
+        successTitle: 'Η οριστική υποβολή ολοκληρώθηκε.',
+        successDescription: `Η εγγραφή για ${context} υποβλήθηκε επιτυχώς.`,
+      });
+      return;
+    }
+
+    if (id === 2) {
+      const isSuccess = await handleActionExecution({
+        action: ypodeigma2SubmitFinalAction,
+        successTitle: 'Η οριστική υποβολή ολοκληρώθηκε.',
+        successDescription: `Η εγγραφή για ${context} μεταφέρθηκε στην κατηγορία ΥΠΟΒΛΗΘΕΙΣΕΣ.`,
+      });
+
+      if (isSuccess) {
+        navigate('/dashboard/my-submissions', {
+          state: {
+            successMessage: buildSubmissionSuccessMessage('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
+          },
+        });
+      }
+
+      return;
+    }
+
+    setActionMessage({
+      type: 'info',
+      title: 'Η οριστική υποβολή δεν είναι ακόμη διαθέσιμη.',
+      description: `Το ${getYpodeigmaLabel(id)} δεν έχει συνδεθεί ακόμη με διαδικασία οριστικής υποβολής.`,
+    });
+  };
+
+  const handleReturnForCorrection = async () => {
+    const context = buildSelectionContext(id, controlsOptions, controlsValue);
+
+    if (id === 2) {
+      const isSuccess = await handleActionExecution({
+        action: ypodeigma2ReturnAction,
+        successTitle: 'Η επιστροφή για διόρθωση ολοκληρώθηκε.',
+        successDescription: `Η εγγραφή για ${context} μεταφέρθηκε στην κατηγορία ΕΠΙΣΤΡΟΦΗ ΓΙΑ ΔΙΟΡΘΩΣΗ.`,
+      });
+
+      if (isSuccess) {
+        navigate('/dashboard/my-submissions', {
+          state: {
+            successMessage: buildSubmissionSuccessMessage('ΕΠΙΣΤΡΟΦΗ ΓΙΑ ΔΙΟΡΘΩΣΗ', context),
+          },
+        });
+      }
+
+      return;
+    }
+
+    setActionMessage({
+      type: 'info',
+      title: 'Η επιστροφή για διόρθωση δεν είναι ακόμη διαθέσιμη.',
+      description: `Το ${getYpodeigmaLabel(id)} δεν έχει συνδεθεί ακόμη με διαδικασία επιστροφής.`,
     });
   };
 
@@ -238,6 +501,9 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
     controlsOptions.monades.find((monada) => monada.id === controlsValue.monadaId)?.name ?? null;
   const selectedMoiraLabel =
     controlsOptions.moires.find((moira) => moira.id === controlsValue.moiraId)?.name ?? null;
+
+  const shouldShowSharedActions = id !== 22;
+  const shouldShowActionsPanel = shouldShowSharedActions && Boolean(controlsValue.etos && controlsValue.moiraId);
 
   let formContent: ReactNode;
 
@@ -263,9 +529,9 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         selectedEtos={controlsValue.etos}
         selectedEtosStatus={controlsValue.etosStatus}
         selectedEtosSource={controlsValue.etosSource}
-        onRegisterReturnForCorrection={setYpodeigma2ReturnAction}
-        onRegisterSaveDraft={setYpodeigma2SaveDraftAction}
-        onRegisterSubmitFinal={setYpodeigma2SubmitFinalAction}
+        onRegisterReturnForCorrection={handleRegisterYpodeigma2ReturnAction}
+        onRegisterSaveDraft={handleRegisterYpodeigma2SaveDraftAction}
+        onRegisterSubmitFinal={handleRegisterYpodeigma2SubmitFinalAction}
       />
     );
   } else if (id === 3) {
@@ -285,18 +551,43 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
 
   return (
     <>
-      <YpodeigmaControlsPanel
-        role={role}
-        value={controlsValue}
-        options={controlsOptions}
-        isLoading={isControlsLoading}
-        onChange={handleControlsChange}
-        onRetrieve={handleRetrieve}
-        onStartNewYear={handleStartNewYear}
-        onTemporarySave={handleTemporarySave}
-        onFinalSubmit={handleFinalSubmit}
-        onReturnForCorrection={handleReturnForCorrection}
-      />
+      <section className="mb-8 space-y-4">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,2.3fr)_minmax(280px,1fr)]">
+          <YpodeigmaControlsPanel
+            role={role}
+            value={controlsValue}
+            options={controlsOptions}
+            isLoading={isControlsLoading}
+            isStartingNewYear={isStartingNewYear}
+            onChange={handleControlsChange}
+            onRetrieve={handleRetrieve}
+            onStartNewYear={() => {
+              void handleStartNewYear();
+            }}
+          />
+
+          {shouldShowSharedActions ? (
+            <YpodeigmaActionsPanel
+              role={role}
+              isVisible={shouldShowActionsPanel}
+              isBusy={isActionRunning}
+              isReadOnlyYear={controlsValue.etosStatus === 'view'}
+              onTemporarySave={() => {
+                void handleTemporarySave();
+              }}
+              onFinalSubmit={() => {
+                void handleFinalSubmit();
+              }}
+              onReturnForCorrection={() => {
+                void handleReturnForCorrection();
+              }}
+            />
+          ) : null}
+        </div>
+
+        {actionMessage ? <YpodeigmaActionMessage message={actionMessage} /> : null}
+      </section>
+
       {formContent}
     </>
   );

@@ -1,4 +1,23 @@
-import type { YpodeigmaControlsOptions } from './types';
+import type { NewEtosAvailabilityResult, YpodeigmaControlsOptions } from './types';
+
+type MockStartedEtosRecord = {
+  ypodeigmaId: number;
+  monadaId: string;
+  etos: number;
+  state: 'temporary-saved' | 'submitted';
+};
+
+type CheckNewEtosAvailabilityParams = {
+  ypodeigmaId: number;
+  monadaId: string;
+  etos: number;
+};
+
+type StartNewEtosParams = {
+  ypodeigmaId: number;
+  monadaId: string;
+  etos: number;
+};
 
 const MOCK_OPTIONS: YpodeigmaControlsOptions = {
   monades: [
@@ -20,10 +39,75 @@ const MOCK_OPTIONS: YpodeigmaControlsOptions = {
   ],
 };
 
+const MOCK_STARTED_ETOS_RECORDS: MockStartedEtosRecord[] = [
+  { ypodeigmaId: 1, monadaId: '110pm', etos: 2024, state: 'submitted' },
+  { ypodeigmaId: 2, monadaId: '110pm', etos: 2025, state: 'temporary-saved' },
+  { ypodeigmaId: 2, monadaId: '116pm', etos: 2024, state: 'submitted' },
+  { ypodeigmaId: 3, monadaId: '117pm', etos: 2026, state: 'temporary-saved' },
+];
+
 export async function fetchYpodeigmaControlsOptions(): Promise<YpodeigmaControlsOptions> {
   return new Promise((resolve) => {
     window.setTimeout(() => {
       resolve(MOCK_OPTIONS);
+    }, 250);
+  });
+}
+
+export async function checkNewEtosAvailability({
+  ypodeigmaId,
+  monadaId,
+  etos,
+}: CheckNewEtosAvailabilityParams): Promise<NewEtosAvailabilityResult> {
+  return new Promise((resolve) => {
+    window.setTimeout(() => {
+      const existingRecord = MOCK_STARTED_ETOS_RECORDS.find(
+        (record) => record.ypodeigmaId === ypodeigmaId && record.monadaId === monadaId && record.etos === etos,
+      );
+
+      if (existingRecord) {
+        resolve({
+          isAvailable: false,
+          message:
+            existingRecord.state === 'submitted'
+              ? `Το έτος ${etos} υπάρχει ήδη ως οριστικά υποβληθέν για τη συγκεκριμένη μονάδα.`
+              : `Το έτος ${etos} υπάρχει ήδη ως προσωρινά αποθηκευμένο για τη συγκεκριμένη μονάδα.`,
+        });
+        return;
+      }
+
+      resolve({
+        isAvailable: true,
+        message: `Το έτος ${etos} είναι διαθέσιμο για νέα καταχώριση.`,
+      });
+    }, 250);
+  });
+}
+
+export async function startNewEtos({
+  ypodeigmaId,
+  monadaId,
+  etos,
+}: StartNewEtosParams): Promise<{ etos: number; status: 'editable' }> {
+  return new Promise((resolve) => {
+    window.setTimeout(() => {
+      const existsAlready = MOCK_STARTED_ETOS_RECORDS.some(
+        (record) => record.ypodeigmaId === ypodeigmaId && record.monadaId === monadaId && record.etos === etos,
+      );
+
+      if (!existsAlready) {
+        MOCK_STARTED_ETOS_RECORDS.push({
+          ypodeigmaId,
+          monadaId,
+          etos,
+          state: 'temporary-saved',
+        });
+      }
+
+      resolve({
+        etos,
+        status: 'editable',
+      });
     }, 250);
   });
 }

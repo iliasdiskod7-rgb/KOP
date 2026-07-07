@@ -113,7 +113,7 @@ export default function Dashboard({ onLogout, username, role }: DashboardProps) 
       />
 
       <main className="mx-auto max-w-7xl p-8">
-        <Routes>
+        <Routes key={location.pathname}>
           <Route index element={<Navigate to="ypologismos" replace />} />
           <Route path="ypologismos" element={<DashboardHome />} />
           <Route path="my-submissions" element={<MySubmissions />} />
