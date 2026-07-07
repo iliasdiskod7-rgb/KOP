@@ -1,6 +1,11 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getStoredYpodeigma2Submissions } from '../features/forms/ypodeigma2/submissionStorage';
 import type { Ypodeigma2Submission, Ypodeigma2SubmissionStatus } from '../features/forms/ypodeigma2/types';
+
+type MySubmissionsLocationState = {
+  successMessage?: string;
+};
 
 function formatAmount(value: number) {
   return new Intl.NumberFormat('el-GR', {
@@ -109,9 +114,7 @@ function SubmissionSection({
             <tbody>
               {submissions.map((submission) => (
                 <tr key={submission.id} className="bg-white">
-                  <td className="border border-slate-200 px-4 py-3">
-                    {formatDateTime(submission.createdAt)}
-                  </td>
+                  <td className="border border-slate-200 px-4 py-3">{formatDateTime(submission.createdAt)}</td>
                   <td className="border border-slate-200 px-4 py-3">
                     <div className="font-semibold text-slate-800">{submission.sectionId}</div>
                     <div className="text-xs text-slate-500">{submission.sectionTitle}</div>
@@ -132,7 +135,37 @@ function SubmissionSection({
 }
 
 export default function MySubmissions() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const state = (location.state ?? {}) as MySubmissionsLocationState;
+  const [toastMessage, setToastMessage] = useState(state.successMessage ?? '');
+  const [isToastVisible, setIsToastVisible] = useState(false);
   const submissions = useMemo(() => getStoredYpodeigma2Submissions(), []);
+
+  useEffect(() => {
+    if (!state.successMessage) {
+      return;
+    }
+
+    const enterTimer = window.setTimeout(() => {
+      setIsToastVisible(true);
+    }, 20);
+
+    const fadeTimer = window.setTimeout(() => {
+      setIsToastVisible(false);
+    }, 2500);
+
+    const cleanupTimer = window.setTimeout(() => {
+      setToastMessage('');
+      navigate(location.pathname, { replace: true, state: null });
+    }, 10000);
+
+    return () => {
+      window.clearTimeout(enterTimer);
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(cleanupTimer);
+    };
+  }, [location.pathname, navigate, state.successMessage]);
 
   const pendingSubmissions = useMemo(
     () => submissions.filter((submission) => submission.status === 'pending-submission'),
@@ -149,11 +182,32 @@ export default function MySubmissions() {
 
   return (
     <section className="space-y-6">
+      {toastMessage ? (
+        <div className="pointer-events-none fixed inset-x-0 top-24 z-50 flex justify-center px-4">
+          <div
+            className={`relative w-full max-w-2xl overflow-hidden rounded-[28px] border border-emerald-200 bg-white/95 shadow-2xl backdrop-blur transition-all duration-500 ease-out ${
+              isToastVisible ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
+            }`}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-50 via-white to-cyan-50" />
+            <div className="relative flex items-center gap-4 px-6 py-5 sm:px-7 sm:py-6">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-3xl font-black text-emerald-600 shadow-inner">
+                ✓
+              </div>
+              <div className="min-w-0">
+                <div className="text-base font-bold tracking-wide text-emerald-700">Ενημέρωση Υποβολής</div>
+                <div className="mt-1 text-sm leading-6 text-slate-700">{toastMessage}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
         <h1 className="text-2xl font-bold text-slate-800">Οι Υποβολές μου</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Εδώ εμφανίζονται όλες οι υποβολές του Υποδείγματος 2, χωρισμένες ανά κατάσταση,
-          μέχρι να συνδεθεί πλήρως η ροή με το backend.
+          Εδώ εμφανίζονται όλες οι υποβολές του Υποδείγματος 2, χωρισμένες ανά κατάσταση, μέχρι να συνδεθεί πλήρως η
+          ροή με το backend.
         </p>
       </div>
 

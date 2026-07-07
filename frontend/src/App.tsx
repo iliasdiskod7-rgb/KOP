@@ -3,32 +3,66 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import Footer from './components/Footer';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import type { AuthUser, AppUserRole } from './types/auth';
 
 const STORAGE_KEY = 'kop-auth-user';
 
+function readStoredUser(): AuthUser | null {
+  const storedValue = localStorage.getItem(STORAGE_KEY);
+
+  if (!storedValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(storedValue) as Partial<AuthUser> | string;
+
+    if (typeof parsedValue === 'string') {
+      return parsedValue.trim() ? { username: parsedValue, role: 'user' } : null;
+    }
+
+    if (
+      parsedValue &&
+      typeof parsedValue.username === 'string' &&
+      (parsedValue.role === 'user' || parsedValue.role === 'admin')
+    ) {
+      return {
+        username: parsedValue.username,
+        role: parsedValue.role,
+      };
+    }
+  } catch {
+    if (storedValue.trim()) {
+      return { username: storedValue, role: 'user' };
+    }
+  }
+
+  return null;
+}
+
 export default function App() {
-  const [user, setUser] = useState(() => localStorage.getItem(STORAGE_KEY) ?? '');
-  const isLoggedIn = user.trim() !== '';
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => readStoredUser());
+  const isLoggedIn = authUser !== null && authUser.username.trim() !== '';
 
   useEffect(() => {
-    if (user.trim()) {
-      localStorage.setItem(STORAGE_KEY, user);
+    if (authUser?.username.trim()) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser));
       return;
     }
 
     localStorage.removeItem(STORAGE_KEY);
-  }, [user]);
+  }, [authUser]);
 
-  const handleLoginSuccess = (username: string) => {
-    setUser(username);
+  const handleLoginSuccess = (username: string, role: AppUserRole) => {
+    setAuthUser({ username, role });
   };
 
   const handleLogout = () => {
-    setUser('');
+    setAuthUser(null);
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans">
+    <div className="flex min-h-screen flex-col justify-between bg-slate-100 font-sans">
       <Routes>
         <Route
           path="/"
@@ -43,8 +77,8 @@ export default function App() {
         <Route
           path="/dashboard/*"
           element={
-            isLoggedIn ? (
-              <Dashboard username={user} onLogout={handleLogout} />
+            isLoggedIn && authUser ? (
+              <Dashboard username={authUser.username} role={authUser.role} onLogout={handleLogout} />
             ) : (
               <Navigate to="/" replace />
             )

@@ -103,3 +103,11 @@ export function saveYpodeigma2Submission(submission: Ypodeigma2Submission) {
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSubmissions));
 }
+
+export function upsertYpodeigma2Submission(submission: Ypodeigma2Submission) {
+  const currentSubmissions = getStoredYpodeigma2Submissions();
+  const filteredSubmissions = currentSubmissions.filter((entry) => entry.id !== submission.id);
+  const nextSubmissions = [submission, ...filteredSubmissions];
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSubmissions));
+}

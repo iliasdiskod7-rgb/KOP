@@ -3,12 +3,14 @@ import KOP from '../assets/KOP.png';
 import resultIcon from '../assets/result.png';
 import tableIcon from '../assets/table.png';
 import DropdownMenu from './DropdownMenu';
+import type { AppUserRole } from '../types/auth';
 
 interface NavbarProps {
   activeTab: string;
   onLogout: () => void;
   onTabChange: (tab: string) => void;
   username: string;
+  role: AppUserRole;
 }
 
 function getSidebarButtonClass(activeTab: string, tab: string) {
@@ -24,6 +26,7 @@ export default function Navbar({
   onLogout,
   onTabChange,
   username,
+  role,
 }: NavbarProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeFlyout, setActiveFlyout] = useState<string | null>(null);
@@ -72,6 +75,9 @@ export default function Navbar({
           <div className="flex items-center space-x-2">
             <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
             <span className="text-sm font-bold tracking-wide text-slate-200">{username}</span>
+            <span className="rounded-full border border-slate-600 bg-slate-700/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-200">
+              {role}
+            </span>
           </div>
 
           <button

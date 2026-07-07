@@ -3,10 +3,12 @@ import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 're
 import Navbar from '../components/Navbar';
 import DynamicForm from '../features/forms/DynamicForm';
 import MySubmissions from './MySubmissions';
+import type { AppUserRole } from '../types/auth';
 
 interface DashboardProps {
   onLogout: () => void;
   username: string;
+  role: AppUserRole;
 }
 
 type DashboardLocationState = {
@@ -75,18 +77,7 @@ function DashboardHome() {
   );
 }
 
-function DashboardFormRoute() {
-  const { id } = useParams();
-  const parsedId = Number(id);
-
-  if (!Number.isInteger(parsedId) || parsedId < 1) {
-    return <Navigate to="/dashboard/ypologismos" replace />;
-  }
-
-  return <DynamicForm id={parsedId} />;
-}
-
-export default function Dashboard({ onLogout, username }: DashboardProps) {
+export default function Dashboard({ onLogout, username, role }: DashboardProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -118,6 +109,7 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
         onLogout={onLogout}
         onTabChange={handleTabChange}
         username={username}
+        role={role}
       />
 
       <main className="mx-auto max-w-7xl p-8">
@@ -125,10 +117,21 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
           <Route index element={<Navigate to="ypologismos" replace />} />
           <Route path="ypologismos" element={<DashboardHome />} />
           <Route path="my-submissions" element={<MySubmissions />} />
-          <Route path="ypodeigma/:id" element={<DashboardFormRoute />} />
+          <Route path="ypodeigma/:id" element={<DashboardFormRouteWrapper role={role} />} />
           <Route path="*" element={<Navigate to="ypologismos" replace />} />
         </Routes>
       </main>
     </div>
   );
+}
+
+function DashboardFormRouteWrapper({ role }: { role: AppUserRole }) {
+  const { id } = useParams();
+  const parsedId = Number(id);
+
+  if (!Number.isInteger(parsedId) || parsedId < 1) {
+    return <Navigate to="/dashboard/ypologismos" replace />;
+  }
+
+  return <DynamicForm id={parsedId} role={role} />;
 }

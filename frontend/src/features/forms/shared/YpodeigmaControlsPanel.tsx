@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
+import type { AppUserRole } from '../../../types/auth';
 import type { OrgUnitOption, YpodeigmaControlsOptions, YpodeigmaControlsValue } from './types';
 
 type YpodeigmaControlsPanelProps = {
+  role: AppUserRole;
   value: YpodeigmaControlsValue;
   options: YpodeigmaControlsOptions;
   isLoading?: boolean;
@@ -10,6 +12,7 @@ type YpodeigmaControlsPanelProps = {
   onStartNewYear: () => void;
   onTemporarySave: () => void;
   onFinalSubmit?: () => void;
+  onReturnForCorrection?: () => void;
 };
 
 function getControlClassName(isDisabled = false) {
@@ -44,7 +47,16 @@ function PaperPlaneIcon() {
   );
 }
 
+function ReturnIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
+      <path d="M9.4 6.3 4.7 11l4.7 4.7 1.4-1.4-2.3-2.3H15a3 3 0 0 1 0 6h-4v2h4a5 5 0 0 0 0-10H8.5l2.3-2.3-1.4-1.4Z" />
+    </svg>
+  );
+}
+
 export default function YpodeigmaControlsPanel({
+  role,
   value,
   options,
   isLoading = false,
@@ -53,13 +65,15 @@ export default function YpodeigmaControlsPanel({
   onStartNewYear,
   onTemporarySave,
   onFinalSubmit,
+  onReturnForCorrection,
 }: YpodeigmaControlsPanelProps) {
   const filteredMoires = useMemo(
     () => getFilteredMoires(options.moires, value.monadaId),
     [options.moires, value.monadaId],
   );
   const hasSelectedYear = value.etos !== null;
-  const shouldShowActions = hasSelectedYear && value.etosStatus !== 'view';
+  const isAdminReviewer = role === 'admin';
+  const shouldShowActions = hasSelectedYear && (isAdminReviewer || value.etosStatus !== 'view');
 
   const handleMonadaChange = (nextMonadaId: string) => {
     const normalizedMonadaId = nextMonadaId || null;
@@ -136,35 +150,37 @@ export default function YpodeigmaControlsPanel({
               </button>
             </div>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-slate-600">Νέο έτος</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={value.neoEtos}
-                  onChange={(event) =>
-                    onChange({
-                      ...value,
-                      neoEtos: event.target.value,
-                    })
-                  }
-                  placeholder="π.χ. 2027"
-                  className={getControlClassName(isLoading)}
-                  disabled={isLoading}
-                />
-              </label>
+            {role !== 'admin' ? (
+              <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-600">Νέο έτος</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={value.neoEtos}
+                    onChange={(event) =>
+                      onChange({
+                        ...value,
+                        neoEtos: event.target.value,
+                      })
+                    }
+                    placeholder="π.χ. 2027"
+                    className={getControlClassName(isLoading)}
+                    disabled={isLoading}
+                  />
+                </label>
 
-              <button
-                type="button"
-                onClick={onStartNewYear}
-                className="mt-[29px] rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-sky-700"
-              >
-                Έναρξη
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={onStartNewYear}
+                  className="mt-[29px] rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-sky-700"
+                >
+                  Έναρξη
+                </button>
+              </div>
+            ) : null}
 
-            {value.etos && value.etosStatus ? (
+            {role !== 'admin' && value.etos && value.etosStatus ? (
               <div
                 className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
                   value.etosStatus === 'editable'
@@ -251,23 +267,36 @@ export default function YpodeigmaControlsPanel({
           </div>
 
           <div className="space-y-3">
-            <button
-              type="button"
-              onClick={onTemporarySave}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-sky-700"
-            >
-              <PrinterIcon />
-              Προσωρινή Αποθήκευση
-            </button>
+            {isAdminReviewer ? (
+              <button
+                type="button"
+                onClick={onReturnForCorrection}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-amber-700"
+              >
+                <ReturnIcon />
+                Επιστροφή για Διόρθωση
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onTemporarySave}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-sky-700"
+                >
+                  <PrinterIcon />
+                  Προσωρινή Αποθήκευση
+                </button>
 
-            <button
-              type="button"
-              onClick={onFinalSubmit}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-blue-800"
-            >
-              <PaperPlaneIcon />
-              Οριστική Υποβολή
-            </button>
+                <button
+                  type="button"
+                  onClick={onFinalSubmit}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-blue-800"
+                >
+                  <PaperPlaneIcon />
+                  Οριστική Υποβολή
+                </button>
+              </>
+            )}
           </div>
         </aside>
       ) : (
@@ -275,7 +304,9 @@ export default function YpodeigmaControlsPanel({
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-slate-500">Ενέργειες</h2>
             <p className="text-sm text-slate-500">
-              {value.etosStatus === 'view'
+              {isAdminReviewer
+                ? 'Οι ενέργειες θα εμφανιστούν μόλις επιλέξετε έτος, ώστε ο διαχειριστής να μπορεί να ελέγξει και να επιστρέψει για διόρθωση.'
+                : value.etosStatus === 'view'
                 ? 'Οι ενέργειες δεν εμφανίζονται, γιατί το επιλεγμένο έτος είναι μόνο για προβολή και έχει ήδη ολοκληρωθεί.'
                 : 'Οι ενέργειες θα εμφανιστούν μόλις επιλέξετε έτος και στη συνέχεια μονάδα ή μοίρα.'}
             </p>

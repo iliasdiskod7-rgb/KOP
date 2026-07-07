@@ -1,4 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { AppUserRole } from '../../types/auth';
 import ProsopikoForm from './prosopiko/ProsopikoForm';
 import YpodeigmaControlsPanel from './shared/YpodeigmaControlsPanel';
 import { fetchYpodeigmaControlsOptions } from './shared/mockYpodeigmaControlsApi';
@@ -11,6 +13,7 @@ import Ypodeigma4Form from './ypodeigma4/Ypodeigma4Form';
 
 interface DynamicFormProps {
   id: number;
+  role: AppUserRole;
 }
 
 const EMPTY_CONTROLS_VALUE: YpodeigmaControlsValue = {
@@ -75,13 +78,17 @@ function getYearStatus(
   return options.etoi.find((option) => option.value === etos)?.status ?? null;
 }
 
-export default function DynamicForm({ id }: DynamicFormProps) {
+export default function DynamicForm({ id, role }: DynamicFormProps) {
+  const navigate = useNavigate();
   const [controlsValue, setControlsValue] = useState<YpodeigmaControlsValue>(EMPTY_CONTROLS_VALUE);
   const [controlsOptions, setControlsOptions] =
     useState<YpodeigmaControlsOptions>(EMPTY_CONTROLS_OPTIONS);
   const [isControlsLoading, setIsControlsLoading] = useState(true);
   const [ypodeigma1Actions, setYpodeigma1Actions] =
     useState<Ypodeigma1FormActions>(EMPTY_YPODEIGMA1_ACTIONS);
+  const [ypodeigma2ReturnAction, setYpodeigma2ReturnAction] = useState<(() => void) | null>(null);
+  const [ypodeigma2SaveDraftAction, setYpodeigma2SaveDraftAction] = useState<(() => void) | null>(null);
+  const [ypodeigma2SubmitFinalAction, setYpodeigma2SubmitFinalAction] = useState<(() => void) | null>(null);
 
   const handleControlsChange = (nextValue: YpodeigmaControlsValue) => {
     let nextMonadaId = nextValue.monadaId;
@@ -177,6 +184,16 @@ export default function DynamicForm({ id }: DynamicFormProps) {
       return;
     }
 
+    if (id === 2 && ypodeigma2SaveDraftAction) {
+      ypodeigma2SaveDraftAction();
+      navigate('/dashboard/my-submissions', {
+        state: {
+          successMessage: 'Η υποβολή αποθηκεύτηκε και μεταφέρθηκε στην κατηγορία ΠΡΟΣ ΥΠΟΒΟΛΗ.',
+        },
+      });
+      return;
+    }
+
     console.log('Προσωρινή αποθήκευση στοιχείων panel', controlsValue);
   };
 
@@ -186,7 +203,35 @@ export default function DynamicForm({ id }: DynamicFormProps) {
       return;
     }
 
+    if (id === 2 && ypodeigma2SubmitFinalAction) {
+      ypodeigma2SubmitFinalAction();
+      navigate('/dashboard/my-submissions', {
+        state: {
+          successMessage: 'Η υποβολή καταχωρήθηκε οριστικά και μεταφέρθηκε στις ΥΠΟΒΛΗΘΕΙΣΕΣ.',
+        },
+      });
+      return;
+    }
+
     console.log('Οριστική υποβολή στοιχείων panel', controlsValue);
+  };
+
+  const handleReturnForCorrection = () => {
+    if (id === 2 && ypodeigma2ReturnAction) {
+      ypodeigma2ReturnAction();
+      navigate('/dashboard/my-submissions', {
+        state: {
+          successMessage: 'Η υποβολή επιστράφηκε για διόρθωση και μεταφέρθηκε στην αντίστοιχη κατηγορία.',
+        },
+      });
+      return;
+    }
+
+    console.log('Επιστροφή για διόρθωση', {
+      formId: id,
+      role,
+      controlsValue,
+    });
   };
 
   const selectedMonadaLabel =
@@ -212,11 +257,15 @@ export default function DynamicForm({ id }: DynamicFormProps) {
   } else if (id === 2) {
     formContent = (
       <Ypodeigma2Form
+        role={role}
         selectedMoiraId={controlsValue.moiraId}
         selectedMoiraLabel={selectedMoiraLabel}
         selectedEtos={controlsValue.etos}
         selectedEtosStatus={controlsValue.etosStatus}
         selectedEtosSource={controlsValue.etosSource}
+        onRegisterReturnForCorrection={setYpodeigma2ReturnAction}
+        onRegisterSaveDraft={setYpodeigma2SaveDraftAction}
+        onRegisterSubmitFinal={setYpodeigma2SubmitFinalAction}
       />
     );
   } else if (id === 3) {
@@ -237,6 +286,7 @@ export default function DynamicForm({ id }: DynamicFormProps) {
   return (
     <>
       <YpodeigmaControlsPanel
+        role={role}
         value={controlsValue}
         options={controlsOptions}
         isLoading={isControlsLoading}
@@ -245,6 +295,7 @@ export default function DynamicForm({ id }: DynamicFormProps) {
         onStartNewYear={handleStartNewYear}
         onTemporarySave={handleTemporarySave}
         onFinalSubmit={handleFinalSubmit}
+        onReturnForCorrection={handleReturnForCorrection}
       />
       {formContent}
     </>

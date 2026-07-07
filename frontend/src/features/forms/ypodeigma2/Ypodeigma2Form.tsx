@@ -1,15 +1,21 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import type { AppUserRole } from '../../../types/auth';
+import { calculateHierarchicalGrandTotal, getAmountKey, isLeafRow } from './helpers';
 import { fetchYpodeigma2Section } from './mockYpodeigma2Api';
-import Ypodeigma2ReviewTable from './Ypodeigma2ReviewTable';
-import { getAmountKey, isLeafRow } from './helpers';
+import { upsertYpodeigma2Submission } from './submissionStorage';
 import type { Ypodeigma2AnalysisLevel, Ypodeigma2Row, Ypodeigma2SectionConfig } from './types';
+import Ypodeigma2ReviewTable from './Ypodeigma2ReviewTable';
 
 type Ypodeigma2FormProps = {
+  role: AppUserRole;
   selectedMoiraId: string | null;
   selectedMoiraLabel: string | null;
   selectedEtos: number | null;
   selectedEtosStatus: 'editable' | 'view' | null;
   selectedEtosSource: 'existing' | 'new' | null;
+  onRegisterReturnForCorrection?: (action: (() => void) | null) => void;
+  onRegisterSaveDraft?: (action: (() => void) | null) => void;
+  onRegisterSubmitFinal?: (action: (() => void) | null) => void;
 };
 
 function parseAmount(rawValue: string): number | null {
@@ -36,11 +42,15 @@ function sortAnalysisLevels(levels: Ypodeigma2AnalysisLevel[]) {
 }
 
 export default function Ypodeigma2Form({
+  role,
   selectedMoiraId,
   selectedMoiraLabel,
   selectedEtos,
   selectedEtosStatus,
   selectedEtosSource,
+  onRegisterReturnForCorrection,
+  onRegisterSaveDraft,
+  onRegisterSubmitFinal,
 }: Ypodeigma2FormProps) {
   const [section, setSection] = useState<Ypodeigma2SectionConfig | null>(null);
   const [rows, setRows] = useState<Ypodeigma2Row[]>([]);
@@ -95,7 +105,123 @@ export default function Ypodeigma2Form({
     };
   }, [selectedEtos, selectedEtosSource, selectedEtosStatus, selectedMoiraId]);
 
-  const isEditable = section?.status === 'editable';
+  const isEditable = section?.status === 'editable' && role !== 'admin';
+  const section1ATotal = section ? calculateHierarchicalGrandTotal(rows, section.moires) : 0;
+  const section1BTotal = section ? calculateHierarchicalGrandTotal(section1BRows, section.moires) : 0;
+
+  useEffect(() => {
+    if (!onRegisterReturnForCorrection) {
+      return;
+    }
+
+    if (role !== 'admin' || !section) {
+      onRegisterReturnForCorrection(null);
+      return;
+    }
+
+    onRegisterReturnForCorrection(() => {
+      upsertYpodeigma2Submission({
+        id: `ypodeigma2-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
+        createdAt: new Date().toISOString(),
+        sectionId: section.sectionId,
+        sectionTitle: section.sectionTitle,
+        totalAmount: section1ATotal + section1BTotal,
+        moiraCount: section.moires.length,
+        rowCount: rows.length + section1BRows.length,
+        status: 'returned-for-correction',
+      });
+    });
+
+    return () => {
+      onRegisterReturnForCorrection(null);
+    };
+  }, [
+    onRegisterReturnForCorrection,
+    role,
+    rows.length,
+    section,
+    section1ATotal,
+    section1BRows.length,
+    section1BTotal,
+    selectedEtos,
+    selectedMoiraId,
+  ]);
+
+  useEffect(() => {
+    if (!onRegisterSaveDraft) {
+      return;
+    }
+
+    if (role === 'admin' || !section) {
+      onRegisterSaveDraft(null);
+      return;
+    }
+
+    onRegisterSaveDraft(() => {
+      upsertYpodeigma2Submission({
+        id: `ypodeigma2-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
+        createdAt: new Date().toISOString(),
+        sectionId: section.sectionId,
+        sectionTitle: section.sectionTitle,
+        totalAmount: section1ATotal + section1BTotal,
+        moiraCount: section.moires.length,
+        rowCount: rows.length + section1BRows.length,
+        status: 'pending-submission',
+      });
+    });
+
+    return () => {
+      onRegisterSaveDraft(null);
+    };
+  }, [
+    onRegisterSaveDraft,
+    role,
+    rows.length,
+    section,
+    section1ATotal,
+    section1BRows.length,
+    section1BTotal,
+    selectedEtos,
+    selectedMoiraId,
+  ]);
+
+  useEffect(() => {
+    if (!onRegisterSubmitFinal) {
+      return;
+    }
+
+    if (role === 'admin' || !section) {
+      onRegisterSubmitFinal(null);
+      return;
+    }
+
+    onRegisterSubmitFinal(() => {
+      upsertYpodeigma2Submission({
+        id: `ypodeigma2-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
+        createdAt: new Date().toISOString(),
+        sectionId: section.sectionId,
+        sectionTitle: section.sectionTitle,
+        totalAmount: section1ATotal + section1BTotal,
+        moiraCount: section.moires.length,
+        rowCount: rows.length + section1BRows.length,
+        status: 'submitted',
+      });
+    });
+
+    return () => {
+      onRegisterSubmitFinal(null);
+    };
+  }, [
+    onRegisterSubmitFinal,
+    role,
+    rows.length,
+    section,
+    section1ATotal,
+    section1BRows.length,
+    section1BTotal,
+    selectedEtos,
+    selectedMoiraId,
+  ]);
 
   const handleAmountChange = (
     currentRows: Ypodeigma2Row[],
@@ -158,9 +284,7 @@ export default function Ypodeigma2Form({
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
         <h1 className="text-2xl font-bold text-slate-800">Υπόδειγμα 2</h1>
-        <p className="mt-4 text-sm text-slate-600">
-          Επιλέξτε έτος και μοίρα για να φορτωθεί το Υπόδειγμα 2.
-        </p>
+        <p className="mt-4 text-sm text-slate-600">Επιλέξτε έτος και μοίρα για να φορτωθεί το Υπόδειγμα 2.</p>
       </div>
     );
   }
@@ -186,19 +310,21 @@ export default function Ypodeigma2Form({
           </p>
         </div>
 
-        <div
-          className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
-            section.status === 'editable'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-amber-200 bg-amber-50 text-amber-700'
-          }`}
-        >
-          {selectedEtosSource === 'new'
-            ? `Το νέο έτος ${selectedEtos} είναι κενό και editable για νέα καταχώριση.`
-            : section.status === 'editable'
-              ? `Το έτος ${selectedEtos} έχει mock δεδομένα από backend και είναι editable.`
-              : `Το έτος ${selectedEtos} έχει mock δεδομένα από backend και είναι μόνο για προβολή.`}
-        </div>
+        {role !== 'admin' ? (
+          <div
+            className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+              section.status === 'view'
+                ? 'border-amber-200 bg-amber-50 text-amber-700'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            }`}
+          >
+            {selectedEtosSource === 'new'
+              ? `Το νέο έτος ${selectedEtos} είναι κενό και editable για νέα καταχώριση.`
+              : section.status === 'editable'
+                ? `Το έτος ${selectedEtos} έχει mock δεδομένα από backend και είναι editable.`
+                : `Το έτος ${selectedEtos} έχει mock δεδομένα από backend και είναι μόνο για προβολή.`}
+          </div>
+        ) : null}
 
         <Ypodeigma2ReviewTable
           rows={rows}
