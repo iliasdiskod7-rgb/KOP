@@ -10,7 +10,11 @@ import {
   fetchYpodeigmaControlsOptions,
   startNewEtos,
 } from './shared/mockYpodeigmaControlsApi';
-import type { ActionMessage, YpodeigmaControlsOptions, YpodeigmaControlsValue } from './shared/types';
+import type {
+  ActionMessage,
+  YpodeigmaControlsOptions,
+  YpodeigmaControlsValue,
+} from './shared/types';
 import Ypodeigma1Form from './ypodeigma1/Ypodeigma1Form';
 import type { Ypodeigma1FormActions } from './ypodeigma1/types';
 import Ypodeigma2Form from './ypodeigma2/Ypodeigma2Form';
@@ -153,6 +157,14 @@ function buildSubmissionDescription(destinationLabel: string, context: string) {
   return `Η εγγραφή για ${context} αποθηκεύτηκε επιτυχώς και μεταφέρθηκε στην κατηγορία ${destinationLabel}.`;
 }
 
+function buildUnavailableActionMessage(title: string, ypodeigmaLabel: string): ActionMessage {
+  return {
+    type: 'info',
+    title,
+    description: `Το ${ypodeigmaLabel} δεν έχει συνδεθεί ακόμη με τη συγκεκριμένη ενέργεια.`,
+  };
+}
+
 function ChevronIcon({ isOpen }: { isOpen: boolean }) {
   return (
     <svg
@@ -200,14 +212,23 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
   const [actionMessage, setActionMessage] = useState<ActionMessage | null>(null);
   const [isControlsCollapsed, setIsControlsCollapsed] = useState(false);
 
-  const [ypodeigma1SaveDraftAction, setYpodeigma1SaveDraftAction] = useState<(() => void) | null>(null);
-  const [ypodeigma1SubmitFinalAction, setYpodeigma1SubmitFinalAction] = useState<(() => void) | null>(null);
-  const [ypodeigma2SaveDraftAction, setYpodeigma2SaveDraftAction] = useState<(() => void) | null>(null);
-  const [ypodeigma2SubmitFinalAction, setYpodeigma2SubmitFinalAction] = useState<(() => void) | null>(null);
+  const [ypodeigma1SaveDraftAction, setYpodeigma1SaveDraftAction] = useState<(() => void) | null>(
+    null,
+  );
+  const [ypodeigma1SubmitFinalAction, setYpodeigma1SubmitFinalAction] = useState<(() => void) | null>(
+    null,
+  );
+  const [ypodeigma2SaveDraftAction, setYpodeigma2SaveDraftAction] = useState<(() => void) | null>(
+    null,
+  );
+  const [ypodeigma2SubmitFinalAction, setYpodeigma2SubmitFinalAction] = useState<
+    (() => void) | null
+  >(null);
   const [ypodeigma2ReturnAction, setYpodeigma2ReturnAction] = useState<(() => void) | null>(null);
 
   useEffect(() => {
     setControlsValue(EMPTY_CONTROLS_VALUE);
+    setControlsOptions(EMPTY_CONTROLS_OPTIONS);
     setActionMessage(null);
     setIsControlsCollapsed(false);
     setYpodeigma1SaveDraftAction(null);
@@ -234,24 +255,27 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
     setYpodeigma2ReturnAction(() => action);
   }, []);
 
-  const handleControlsChange = (nextValue: YpodeigmaControlsValue) => {
-    let nextMonadaId = nextValue.monadaId;
-    let nextMoiraId = nextValue.moiraId;
+  const handleControlsChange = useCallback(
+    (nextValue: YpodeigmaControlsValue) => {
+      let nextMonadaId = nextValue.monadaId;
+      let nextMoiraId = nextValue.moiraId;
 
-    if (nextValue.etos && !nextMonadaId) {
-      nextMonadaId = getFirstMonadaId(controlsOptions);
-    }
+      if (nextValue.etos && !nextMonadaId) {
+        nextMonadaId = getFirstMonadaId(controlsOptions);
+      }
 
-    if (nextMonadaId && !isMoiraValidForMonada(controlsOptions, nextMonadaId, nextMoiraId)) {
-      nextMoiraId = getFirstMoiraIdForMonada(controlsOptions, nextMonadaId);
-    }
+      if (nextMonadaId && !isMoiraValidForMonada(controlsOptions, nextMonadaId, nextMoiraId)) {
+        nextMoiraId = getFirstMoiraIdForMonada(controlsOptions, nextMonadaId);
+      }
 
-    setControlsValue({
-      ...nextValue,
-      monadaId: nextMonadaId,
-      moiraId: nextMoiraId,
-    });
-  };
+      setControlsValue({
+        ...nextValue,
+        monadaId: nextMonadaId,
+        moiraId: nextMoiraId,
+      });
+    },
+    [controlsOptions],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -303,60 +327,63 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
     };
   }, []);
 
-  const hasCompleteSelection = Boolean(controlsValue.etos && controlsValue.monadaId && controlsValue.moiraId);
+  const hasCompleteSelection = Boolean(
+    controlsValue.etos && controlsValue.monadaId && controlsValue.moiraId,
+  );
 
   useEffect(() => {
-    if (hasCompleteSelection) {
-      setIsControlsCollapsed(true);
-      return;
-    }
+    setIsControlsCollapsed(hasCompleteSelection);
+  }, [hasCompleteSelection]);
 
-    setIsControlsCollapsed(false);
-  }, [hasCompleteSelection, controlsValue.etos, controlsValue.monadaId, controlsValue.moiraId]);
-
-  const navigateToMySubmissions = (flashMessage: FlashMessage) => {
-    navigate('/dashboard/my-submissions', {
-      replace: false,
-      state: {
-        flashMessage,
-        flashKey: Date.now(),
-      },
-    });
-  };
-
-  const executeAction = async (
-    action: (() => void) | null,
-    errorTitle = 'Η ενέργεια δεν είναι διαθέσιμη.',
-  ) => {
-    if (!action) {
-      setActionMessage({
-        type: 'error',
-        title: errorTitle,
-        description: 'Δεν υπάρχει διαθέσιμη ενέργεια για το τρέχον υπόδειγμα.',
+  const navigateToMySubmissions = useCallback(
+    (flashMessage: FlashMessage) => {
+      navigate('/dashboard/my-submissions', {
+        replace: false,
+        state: {
+          flashMessage,
+          flashKey: Date.now(),
+        },
       });
-      return false;
-    }
+    },
+    [navigate],
+  );
 
-    setActionMessage(null);
-    setIsActionRunning(true);
+  const executeAction = useCallback(
+    async (
+      action: (() => void) | null,
+      errorTitle = 'Η ενέργεια δεν είναι διαθέσιμη.',
+    ) => {
+      if (!action) {
+        setActionMessage({
+          type: 'error',
+          title: errorTitle,
+          description: 'Δεν υπάρχει διαθέσιμη ενέργεια για το τρέχον υπόδειγμα.',
+        });
+        return false;
+      }
 
-    try {
-      await Promise.resolve(action());
-      return true;
-    } catch (error) {
-      console.error(error);
-      setActionMessage({
-        type: 'error',
-        title: 'Η ενέργεια απέτυχε.',
-        description: 'Προέκυψε σφάλμα κατά την αποθήκευση. Προσπαθήστε ξανά.',
-      });
-      return false;
-    } finally {
-      setIsActionRunning(false);
-    }
-  };
+      setActionMessage(null);
+      setIsActionRunning(true);
 
-  const handleRetrieve = () => {
+      try {
+        await Promise.resolve(action());
+        return true;
+      } catch (error) {
+        console.error(error);
+        setActionMessage({
+          type: 'error',
+          title: 'Η ενέργεια απέτυχε.',
+          description: 'Προέκυψε σφάλμα κατά την αποθήκευση. Προσπαθήστε ξανά.',
+        });
+        return false;
+      } finally {
+        setIsActionRunning(false);
+      }
+    },
+    [],
+  );
+
+  const handleRetrieve = useCallback(() => {
     if (!controlsValue.etos) {
       setActionMessage({
         type: 'error',
@@ -388,9 +415,9 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         moiraId: nextMoiraId,
       })}.`,
     });
-  };
+  }, [controlsOptions, controlsValue, handleControlsChange, id]);
 
-  const handleStartNewYear = async () => {
+  const handleStartNewYear = useCallback(async () => {
     if (role === 'admin') {
       return;
     }
@@ -412,7 +439,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
       setActionMessage({
         type: 'error',
         title: 'Δεν έγινε έναρξη νέου έτους.',
-        description: 'Δεν βρέθηκε διαθέσιμη μονάδα για την έναρξη του νέου έτους.',
+        description: 'Δεν βρέθηκε διαθέσιμη μονάδα για τη δημιουργία νέου έτους.',
       });
       return;
     }
@@ -455,7 +482,6 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         etosSource: 'new',
         neoEtos: '',
       });
-
     } catch (error) {
       console.error(error);
       setActionMessage({
@@ -466,96 +492,143 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
     } finally {
       setIsStartingNewYear(false);
     }
-  };
+  }, [controlsOptions, controlsValue, handleControlsChange, id, role]);
 
-  const handleTemporarySave = async () => {
+  const handleTemporarySave = useCallback(async () => {
     const context = buildSelectionContext(id, controlsOptions, controlsValue);
 
     if (id === 1) {
       const isSuccess = await executeAction(ypodeigma1SaveDraftAction);
 
-      if (isSuccess) {
-        navigateToMySubmissions(
-          buildFlashMessage(
-            'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-            `Η εγγραφή για ${context} αποθηκεύτηκε προσωρινά.`,
-          ),
-        );
+      if (!isSuccess) {
+        return;
       }
 
+      navigateToMySubmissions(
+        buildFlashMessage(
+          'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
+          `Η εγγραφή για ${context} αποθηκεύτηκε προσωρινά στην κατηγορία ΠΡΟΣ ΥΠΟΒΟΛΗ.`,
+        ),
+      );
       return;
     }
 
     if (id === 2) {
       const isSuccess = await executeAction(ypodeigma2SaveDraftAction);
 
-      if (isSuccess) {
-        navigateToMySubmissions(
-          buildFlashMessage(
-            'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-            buildSubmissionDescription('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
-          ),
-        );
+      if (!isSuccess) {
+        return;
       }
-    }
-  };
 
-  const handleFinalSubmit = async () => {
+      navigateToMySubmissions(
+        buildFlashMessage(
+          'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
+          buildSubmissionDescription('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
+        ),
+      );
+      return;
+    }
+
+    setActionMessage(
+      buildUnavailableActionMessage(
+        'Η προσωρινή αποθήκευση δεν είναι ακόμη διαθέσιμη.',
+        getYpodeigmaLabel(id),
+      ),
+    );
+  }, [
+    controlsOptions,
+    controlsValue,
+    executeAction,
+    id,
+    navigateToMySubmissions,
+    ypodeigma1SaveDraftAction,
+    ypodeigma2SaveDraftAction,
+  ]);
+
+  const handleFinalSubmit = useCallback(async () => {
     const context = buildSelectionContext(id, controlsOptions, controlsValue);
 
     if (id === 1) {
       const isSuccess = await executeAction(ypodeigma1SubmitFinalAction);
 
-      if (isSuccess) {
-        navigateToMySubmissions(
-          buildFlashMessage(
-            'Η οριστική υποβολή ολοκληρώθηκε.',
-            `Η εγγραφή για ${context} υποβλήθηκε επιτυχώς.`,
-          ),
-        );
+      if (!isSuccess) {
+        return;
       }
 
+      navigateToMySubmissions(
+        buildFlashMessage(
+          'Η οριστική υποβολή ολοκληρώθηκε.',
+          `Η εγγραφή για ${context} μεταφέρθηκε στην κατηγορία ΥΠΟΒΛΗΘΕΙΣΕΣ.`,
+        ),
+      );
       return;
     }
 
     if (id === 2) {
       const isSuccess = await executeAction(ypodeigma2SubmitFinalAction);
 
-      if (isSuccess) {
-        navigateToMySubmissions(
-          buildFlashMessage(
-            'Η οριστική υποβολή ολοκληρώθηκε.',
-            buildSubmissionDescription('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
-          ),
-        );
+      if (!isSuccess) {
+        return;
       }
-    }
-  };
 
-  const handleReturnForCorrection = async () => {
+      navigateToMySubmissions(
+        buildFlashMessage(
+          'Η οριστική υποβολή ολοκληρώθηκε.',
+          buildSubmissionDescription('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
+        ),
+      );
+      return;
+    }
+
+    setActionMessage(
+      buildUnavailableActionMessage(
+        'Η οριστική υποβολή δεν είναι ακόμη διαθέσιμη.',
+        getYpodeigmaLabel(id),
+      ),
+    );
+  }, [
+    controlsOptions,
+    controlsValue,
+    executeAction,
+    id,
+    navigateToMySubmissions,
+    ypodeigma1SubmitFinalAction,
+    ypodeigma2SubmitFinalAction,
+  ]);
+
+  const handleReturnForCorrection = useCallback(async () => {
     const context = buildSelectionContext(id, controlsOptions, controlsValue);
 
     if (id === 2) {
       const isSuccess = await executeAction(ypodeigma2ReturnAction);
 
-      if (isSuccess) {
-        navigateToMySubmissions(
-          buildFlashMessage(
-            'Η επιστροφή για διόρθωση ολοκληρώθηκε.',
-            buildSubmissionDescription('ΕΠΙΣΤΡΟΦΗ ΓΙΑ ΔΙΟΡΘΩΣΗ', context),
-          ),
-        );
+      if (!isSuccess) {
+        return;
       }
 
+      navigateToMySubmissions(
+        buildFlashMessage(
+          'Η επιστροφή για διόρθωση ολοκληρώθηκε.',
+          buildSubmissionDescription('ΕΠΙΣΤΡΟΦΗ ΓΙΑ ΔΙΟΡΘΩΣΗ', context),
+        ),
+      );
       return;
     }
 
-    setActionMessage({
-      type: 'info',
-      title: 'Η επιστροφή για διόρθωση δεν είναι ακόμη διαθέσιμη.',
-      description: `Το ${getYpodeigmaLabel(id)} δεν έχει συνδεθεί ακόμη με διαδικασία επιστροφής.`,
-    });
-  };
+    setActionMessage(
+      buildUnavailableActionMessage(
+        'Η επιστροφή για διόρθωση δεν είναι ακόμη διαθέσιμη.',
+        getYpodeigmaLabel(id),
+      ),
+    );
+  }, [
+    controlsOptions,
+    controlsValue,
+    executeAction,
+    id,
+    navigateToMySubmissions,
+    ypodeigma2ReturnAction,
+  ]);
 
   const selectedMonadaLabel =
     controlsOptions.monades.find((monada) => monada.id === controlsValue.monadaId)?.name ?? null;
@@ -563,8 +636,13 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
     controlsOptions.moires.find((moira) => moira.id === controlsValue.moiraId)?.name ?? null;
 
   const shouldShowSharedActions = id !== 22;
-  const shouldShowActionsPanel = shouldShowSharedActions && Boolean(controlsValue.etos && controlsValue.moiraId);
+  const shouldShowActionsPanel =
+    shouldShowSharedActions && Boolean(controlsValue.etos && controlsValue.moiraId);
+  const canShowUserActions =
+    shouldShowActionsPanel && role !== 'admin' && controlsValue.etosStatus !== 'view';
+  const canShowAdminActions = shouldShowActionsPanel && role === 'admin';
   const showCollapsedSummary = hasCompleteSelection && isControlsCollapsed;
+
   const collapsedSummaryItems = [
     controlsValue.etos ? `Έτος ${controlsValue.etos}` : null,
     selectedMonadaLabel ? `Μονάδα ${selectedMonadaLabel}` : null,
@@ -648,7 +726,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {shouldShowSharedActions && role !== 'admin' && controlsValue.etosStatus !== 'view' ? (
+                {canShowUserActions ? (
                   <>
                     <button
                       type="button"
@@ -676,14 +754,14 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
                   </>
                 ) : null}
 
-                {shouldShowSharedActions && role === 'admin' ? (
+                {canShowAdminActions ? (
                   <button
                     type="button"
                     onClick={() => {
                       void handleReturnForCorrection();
                     }}
                     disabled={isActionRunning}
-                    className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300"
+                    className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-md disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:hover:translate-y-0 disabled:hover:scale-100"
                   >
                     <ReturnIcon />
                     Επιστροφή για Διόρθωση
