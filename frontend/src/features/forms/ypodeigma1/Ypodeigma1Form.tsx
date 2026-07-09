@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { upsertYpodeigma2Submission } from '../ypodeigma2/submissionStorage';
 import { buildYpodeigma1SavePayload } from './buildYpodeigma1SavePayload';
-import { parseYpodeigma1Amount } from './helpers';
+import { calculateLeafGrandTotal, isLeafRow, parseYpodeigma1Amount } from './helpers';
 import { fetchYpodeigma1ForMoira } from './mockYpodeigma1Api';
 import type {
   Ypodeigma1CacheByMoira,
@@ -8,7 +9,10 @@ import type {
   Ypodeigma1MoiraCacheEntry,
   Ypodeigma1TableARow,
   Ypodeigma1TableBRow,
+  Ypodeigma1TableCRow,
 } from './types';
+import Ypodeigma1Section1ATable from './Ypodeigma1Section1ATable';
+import Ypodeigma1Section1BTable from './Ypodeigma1Section1BTable';
 
 type Ypodeigma1FormProps = {
   selectedMonadaId: string | null;
@@ -18,7 +22,7 @@ type Ypodeigma1FormProps = {
   selectedEtos: number | null;
   selectedEtosStatus: 'editable' | 'view' | null;
   selectedEtosSource: 'existing' | 'new' | null;
-  onRegisterActions?: (actions: Ypodeigma1FormActions) => void;
+  onRegisterActions?: (actions: Ypodeigma1FormActions | null) => void;
 };
 
 function updateTable1ARows(
@@ -51,6 +55,21 @@ function updateTable1BRows(
   );
 }
 
+function updateTable1CRows(
+  rows: Ypodeigma1TableCRow[],
+  rowId: string,
+  rawValue: string,
+): Ypodeigma1TableCRow[] {
+  return rows.map((row) =>
+    row.id === rowId
+      ? {
+          ...row,
+          amount: parseYpodeigma1Amount(rawValue),
+        }
+      : row,
+  );
+}
+
 function getCurrentEntry(
   cacheByMoira: Ypodeigma1CacheByMoira,
   selectedMoiraId: string | null,
@@ -60,6 +79,26 @@ function getCurrentEntry(
   }
 
   return cacheByMoira[selectedMoiraId] ?? null;
+}
+
+function calculateGrandTotal(entry: Ypodeigma1MoiraCacheEntry | null) {
+  if (!entry) {
+    return 0;
+  }
+
+  return (
+    calculateLeafGrandTotal(entry.table1ARows) +
+    calculateLeafGrandTotal(entry.table1BRows) +
+    calculateLeafGrandTotal(entry.table1CRows)
+  );
+}
+
+function calculateRowCount(entry: Ypodeigma1MoiraCacheEntry | null) {
+  if (!entry) {
+    return 0;
+  }
+
+  return entry.table1ARows.length + entry.table1BRows.length + entry.table1CRows.length;
 }
 
 export default function Ypodeigma1Form({
@@ -127,6 +166,7 @@ export default function Ypodeigma1Form({
             status: response.status,
             table1ARows: response.table1ARows,
             table1BRows: response.table1BRows,
+            table1CRows: response.table1CRows,
           },
         }));
       } finally {
@@ -149,6 +189,8 @@ export default function Ypodeigma1Form({
     [cacheByMoira, selectedMoiraId],
   );
   const isEditable = currentEntry?.status === 'editable';
+  const totalAmount = calculateGrandTotal(currentEntry);
+  const rowCount = calculateRowCount(currentEntry);
 
   useEffect(() => {
     if (!onRegisterActions) {
@@ -157,27 +199,64 @@ export default function Ypodeigma1Form({
 
     onRegisterActions({
       saveDraft: () => {
-        console.log(
-          'Ypodeigma 1 προσωρινή αποθήκευση',
-          buildYpodeigma1SavePayload({
-            monadaId: selectedMonadaId,
-            etos: selectedEtos,
-            cacheByMoira,
-          }),
-        );
+        const payload = buildYpodeigma1SavePayload({
+          monadaId: selectedMonadaId,
+          etos: selectedEtos,
+          cacheByMoira,
+        });
+
+        upsertYpodeigma2Submission({
+          id: `ypodeigma1-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
+          createdAt: new Date().toISOString(),
+          ypodeigmaLabel: 'Υπόδειγμα 1',
+          pterygaLabel: selectedMonadaLabel ?? selectedMonadaId,
+          etos: selectedEtos,
+          sectionId: 'Υπόδειγμα 1',
+          sectionTitle: currentEntry?.moiraLabel ?? selectedMoiraLabel ?? selectedMoiraId ?? 'Χωρίς μοίρα',
+          totalAmount,
+          moiraCount: payload.moires.length,
+          rowCount,
+          status: 'pending-submission',
+        });
       },
       submitFinal: () => {
-        console.log(
-          'Ypodeigma 1 οριστική υποβολή',
-          buildYpodeigma1SavePayload({
-            monadaId: selectedMonadaId,
-            etos: selectedEtos,
-            cacheByMoira,
-          }),
-        );
+        const payload = buildYpodeigma1SavePayload({
+          monadaId: selectedMonadaId,
+          etos: selectedEtos,
+          cacheByMoira,
+        });
+
+        upsertYpodeigma2Submission({
+          id: `ypodeigma1-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
+          createdAt: new Date().toISOString(),
+          ypodeigmaLabel: 'Υπόδειγμα 1',
+          pterygaLabel: selectedMonadaLabel ?? selectedMonadaId,
+          etos: selectedEtos,
+          sectionId: 'Υπόδειγμα 1',
+          sectionTitle: currentEntry?.moiraLabel ?? selectedMoiraLabel ?? selectedMoiraId ?? 'Χωρίς μοίρα',
+          totalAmount,
+          moiraCount: payload.moires.length,
+          rowCount,
+          status: 'submitted',
+        });
       },
     });
-  }, [cacheByMoira, onRegisterActions, selectedEtos, selectedMonadaId]);
+
+    return () => {
+      onRegisterActions(null);
+    };
+  }, [
+    cacheByMoira,
+    currentEntry,
+    onRegisterActions,
+    rowCount,
+    selectedEtos,
+    selectedMonadaId,
+    selectedMonadaLabel,
+    selectedMoiraId,
+    selectedMoiraLabel,
+    totalAmount,
+  ]);
 
   const handleTable1AAmountChange = (rowId: string, rawValue: string) => {
     if (!selectedMoiraId || !isEditable) {
@@ -188,6 +267,12 @@ export default function Ypodeigma1Form({
       const currentEntryForMoira = currentCache[selectedMoiraId];
 
       if (!currentEntryForMoira) {
+        return currentCache;
+      }
+
+      const targetRow = currentEntryForMoira.table1ARows.find((row) => row.id === rowId);
+
+      if (!targetRow || !isLeafRow(targetRow, currentEntryForMoira.table1ARows)) {
         return currentCache;
       }
 
@@ -213,11 +298,45 @@ export default function Ypodeigma1Form({
         return currentCache;
       }
 
+      const targetRow = currentEntryForMoira.table1BRows.find((row) => row.id === rowId);
+
+      if (!targetRow || !isLeafRow(targetRow, currentEntryForMoira.table1BRows)) {
+        return currentCache;
+      }
+
       return {
         ...currentCache,
         [selectedMoiraId]: {
           ...currentEntryForMoira,
           table1BRows: updateTable1BRows(currentEntryForMoira.table1BRows, rowId, rawValue),
+        },
+      };
+    });
+  };
+
+  const handleTable1CAmountChange = (rowId: string, rawValue: string) => {
+    if (!selectedMoiraId || !isEditable) {
+      return;
+    }
+
+    setCacheByMoira((currentCache) => {
+      const currentEntryForMoira = currentCache[selectedMoiraId];
+
+      if (!currentEntryForMoira) {
+        return currentCache;
+      }
+
+      const targetRow = currentEntryForMoira.table1CRows.find((row) => row.id === rowId);
+
+      if (!targetRow || !isLeafRow(targetRow, currentEntryForMoira.table1CRows)) {
+        return currentCache;
+      }
+
+      return {
+        ...currentCache,
+        [selectedMoiraId]: {
+          ...currentEntryForMoira,
+          table1CRows: updateTable1CRows(currentEntryForMoira.table1CRows, rowId, rawValue),
         },
       };
     });
@@ -247,121 +366,56 @@ export default function Ypodeigma1Form({
   }
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 border-b border-slate-100 pb-4">
-          <h1 className="text-2xl font-bold text-slate-800">ΥΠΟΔΕΙΓΜΑ 1</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Πίνακας 1Α για {currentEntry?.monadaLabel ?? selectedMonadaLabel ?? selectedMonadaId} /{' '}
-            {currentEntry?.moiraLabel ?? selectedMoiraLabel ?? selectedMoiraId}
+    <section className="space-y-3">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg lg:p-5">
+        <div className="mb-3">
+          <h1 className="text-xl font-bold text-slate-800">Υπόδειγμα 1</h1>
+          <p className="text-sm text-slate-600">
+            Εμφανίζεται μόνο η επιλεγμένη μοίρα {currentEntry?.moiraLabel ?? selectedMoiraLabel ?? selectedMoiraId}
             {selectedEtos ? ` - Έτος ${selectedEtos}` : ''}
           </p>
         </div>
 
         {currentEntry ? (
           <div
-            className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
+            className={`mb-3 rounded-xl border px-4 py-2.5 text-sm ${
               currentEntry.status === 'editable'
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                 : 'border-amber-200 bg-amber-50 text-amber-700'
             }`}
           >
             {currentEntry.status === 'editable'
-              ? 'Η συγκεκριμένη χρήση είναι editable και επιτρέπει μεταβολές στα ποσά.'
+              ? 'Η συγκεκριμένη χρήση είναι editable και επιτρέπει μεταβολές μόνο στα leaf κελιά.'
               : 'Η συγκεκριμένη χρήση είναι σε κατάσταση προβολής και τα ποσά δεν επεξεργάζονται.'}
           </div>
         ) : null}
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse text-sm text-slate-700">
-            <thead>
-              <tr className="bg-slate-100 text-slate-800">
-                <th className="border border-slate-300 px-3 py-2 text-left font-semibold">Κωδικός</th>
-                <th className="border border-slate-300 px-3 py-2 text-left font-semibold">
-                  Τίτλος Στοιχείου Κόστους
-                </th>
-                <th className="border border-slate-300 px-3 py-2 text-right font-semibold">
-                  {currentEntry?.moiraLabel ?? selectedMoiraLabel ?? selectedMoiraId}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentEntry?.table1ARows.map((row) => (
-                <tr key={row.id} className="bg-white">
-                  <td className="border border-slate-300 px-3 py-2 font-medium">{row.code}</td>
-                  <td className="border border-slate-300 px-3 py-2">{row.title}</td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={row.amount ?? ''}
-                      onChange={(event) => handleTable1AAmountChange(row.id, event.target.value)}
-                      className={`w-full rounded-lg border px-3 py-2 text-right outline-none transition ${
-                        isEditable
-                          ? 'border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100'
-                          : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500'
-                      }`}
-                      placeholder="0"
-                      disabled={!isEditable}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        {currentEntry ? (
+          <div className="space-y-4">
+            <Ypodeigma1Section1ATable
+              entry={currentEntry}
+              isEditable={isEditable}
+              onAmountChange={handleTable1AAmountChange}
+            />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 border-b border-slate-100 pb-4">
-          <h2 className="text-xl font-bold text-slate-800">Πίνακας 1Β</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Ο Πίνακας 1Β εμφανίζεται μόνο για τη μοίρα που έχει επιλεγεί από το dropdown.
-          </p>
-        </div>
+            <Ypodeigma1Section1BTable
+              tableCode="1Β"
+              title="Μικτές Αποδοχές Λοιπών Μοιρών-Επιστασιών-Τμημάτων Άμεσης Υποστήριξης Πτητικού Έργου"
+              rows={currentEntry.table1BRows}
+              isEditable={isEditable}
+              onAmountChange={handleTable1BAmountChange}
+            />
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse text-sm text-slate-700">
-            <thead>
-              <tr className="bg-slate-100 text-slate-800">
-                <th className="border border-slate-300 px-3 py-2 text-left font-semibold">Κωδικός</th>
-                <th className="border border-slate-300 px-3 py-2 text-left font-semibold">Περιγραφή</th>
-                <th className="border border-slate-300 px-3 py-2 text-right font-semibold">
-                  {currentEntry?.moiraLabel ?? selectedMoiraLabel ?? selectedMoiraId}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentEntry?.table1BRows.map((row) => (
-                <tr key={row.id} className="bg-white">
-                  <td className="border border-slate-300 px-3 py-2 font-medium">{row.code}</td>
-                  <td className="border border-slate-300 px-3 py-2">{row.title}</td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={row.amount ?? ''}
-                      onChange={(event) => handleTable1BAmountChange(row.id, event.target.value)}
-                      className={`w-full rounded-lg border px-3 py-2 text-right outline-none transition ${
-                        isEditable
-                          ? 'border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100'
-                          : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500'
-                      }`}
-                      placeholder="0"
-                      disabled={!isEditable}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          Η αποθήκευση οργανώνεται ανά μοίρα και διατηρεί τα δεδομένα της τρέχουσας επιλογής για το συγκεκριμένο
-          έτος.
-        </div>
-      </section>
-    </div>
+            <Ypodeigma1Section1BTable
+              tableCode="1Γ"
+              title="Μικτές Αποδοχές Λοιπών Μοιρών-Επιστασιών-Τμημάτων Έμμεσης Υποστήριξης Πτητικού Έργου"
+              rows={currentEntry.table1CRows}
+              isEditable={isEditable}
+              onAmountChange={handleTable1CAmountChange}
+            />
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }

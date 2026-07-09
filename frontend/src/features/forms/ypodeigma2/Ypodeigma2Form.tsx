@@ -4,10 +4,12 @@ import { calculateHierarchicalGrandTotal, getAmountKey, isLeafRow } from './help
 import { fetchYpodeigma2Section } from './mockYpodeigma2Api';
 import { upsertYpodeigma2Submission } from './submissionStorage';
 import type { Ypodeigma2AnalysisLevel, Ypodeigma2Row, Ypodeigma2SectionConfig } from './types';
-import Ypodeigma2ReviewTable from './Ypodeigma2ReviewTable';
+import Ypodeigma2Section1ATable from './Ypodeigma2Section1ATable';
+import Ypodeigma2Section1BTable from './Ypodeigma2Section1BTable';
 
 type Ypodeigma2FormProps = {
   role: AppUserRole;
+  selectedMonadaLabel: string | null;
   selectedMoiraId: string | null;
   selectedMoiraLabel: string | null;
   selectedEtos: number | null;
@@ -41,8 +43,16 @@ function sortAnalysisLevels(levels: Ypodeigma2AnalysisLevel[]) {
   return [...levels].sort((left, right) => left.displayOrder - right.displayOrder);
 }
 
+function formatAmount(value: number) {
+  return new Intl.NumberFormat('el-GR', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+  }).format(value);
+}
+
 export default function Ypodeigma2Form({
   role,
+  selectedMonadaLabel,
   selectedMoiraId,
   selectedMoiraLabel,
   selectedEtos,
@@ -123,6 +133,9 @@ export default function Ypodeigma2Form({
       upsertYpodeigma2Submission({
         id: `ypodeigma2-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
         createdAt: new Date().toISOString(),
+        ypodeigmaLabel: 'Υπόδειγμα 2',
+        pterygaLabel: selectedMonadaLabel,
+        etos: selectedEtos,
         sectionId: section.sectionId,
         sectionTitle: section.sectionTitle,
         totalAmount: section1ATotal + section1BTotal,
@@ -144,6 +157,7 @@ export default function Ypodeigma2Form({
     section1BRows.length,
     section1BTotal,
     selectedEtos,
+    selectedMonadaLabel,
     selectedMoiraId,
   ]);
 
@@ -161,6 +175,9 @@ export default function Ypodeigma2Form({
       upsertYpodeigma2Submission({
         id: `ypodeigma2-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
         createdAt: new Date().toISOString(),
+        ypodeigmaLabel: 'Υπόδειγμα 2',
+        pterygaLabel: selectedMonadaLabel,
+        etos: selectedEtos,
         sectionId: section.sectionId,
         sectionTitle: section.sectionTitle,
         totalAmount: section1ATotal + section1BTotal,
@@ -182,6 +199,7 @@ export default function Ypodeigma2Form({
     section1BRows.length,
     section1BTotal,
     selectedEtos,
+    selectedMonadaLabel,
     selectedMoiraId,
   ]);
 
@@ -199,6 +217,9 @@ export default function Ypodeigma2Form({
       upsertYpodeigma2Submission({
         id: `ypodeigma2-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
         createdAt: new Date().toISOString(),
+        ypodeigmaLabel: 'Υπόδειγμα 2',
+        pterygaLabel: selectedMonadaLabel,
+        etos: selectedEtos,
         sectionId: section.sectionId,
         sectionTitle: section.sectionTitle,
         totalAmount: section1ATotal + section1BTotal,
@@ -220,6 +241,7 @@ export default function Ypodeigma2Form({
     section1BRows.length,
     section1BTotal,
     selectedEtos,
+    selectedMonadaLabel,
     selectedMoiraId,
   ]);
 
@@ -300,11 +322,11 @@ export default function Ypodeigma2Form({
   }
 
   return (
-    <section className="space-y-5">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold text-slate-800">Υπόδειγμα 2</h1>
-          <p className="text-sm text-slate-600">
+    <section className="space-y-2">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg lg:p-4">
+        <div className="mb-2">
+          <h1 className="text-lg font-bold text-slate-800">Υπόδειγμα 2</h1>
+          <p className="text-xs text-slate-600">
             Εμφανίζεται μόνο η επιλεγμένη μοίρα {selectedMoiraLabel ?? selectedMoiraId}
             {selectedEtos ? ` - Έτος ${selectedEtos}` : ''}
           </p>
@@ -312,7 +334,7 @@ export default function Ypodeigma2Form({
 
         {role !== 'admin' ? (
           <div
-            className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+            className={`mb-2 rounded-xl border px-3 py-2 text-xs ${
               section.status === 'view'
                 ? 'border-amber-200 bg-amber-50 text-amber-700'
                 : 'border-emerald-200 bg-emerald-50 text-emerald-700'
@@ -326,20 +348,52 @@ export default function Ypodeigma2Form({
           </div>
         ) : null}
 
-        <Ypodeigma2ReviewTable
-          rows={rows}
-          section1BRows={section1BRows}
-          section1BTitle={section.section1B.sectionTitle}
-          section={section}
-          isEditable={isEditable}
-          onSection1AAmountChange={(rowId, moiraId, aleId, rawValue) =>
-            handleAmountChange(rows, setRows, rowId, getAmountKey(moiraId, aleId), rawValue)
-          }
-          onSection1BAmountChange={(rowId, moiraId, aleId, rawValue) =>
-            handleAmountChange(section1BRows, setSection1BRows, rowId, getAmountKey(moiraId, aleId), rawValue)
-          }
-          onSection1BTextChange={handleSection1BTextChange}
-        />
+        <div className="space-y-2.5">
+          <Ypodeigma2Section1ATable
+            rows={rows}
+            section={section}
+            isEditable={isEditable}
+            onAmountChange={(rowId, moiraId, aleId, rawValue) =>
+              handleAmountChange(rows, setRows, rowId, getAmountKey(moiraId, aleId), rawValue)
+            }
+          />
+
+          <Ypodeigma2Section1BTable
+            rows={section1BRows}
+            sectionId={section.section1B.sectionId}
+            sectionTitle={section.section1B.sectionTitle}
+            sharedConfig={{
+              analysisLevels: section.analysisLevels,
+              moires: section.moires,
+            }}
+            isEditable={isEditable}
+            onRowTextChange={handleSection1BTextChange}
+            onAmountChange={(rowId, moiraId, aleId, rawValue) =>
+              handleAmountChange(section1BRows, setSection1BRows, rowId, getAmountKey(moiraId, aleId), rawValue)
+            }
+          />
+
+          <div className="overflow-hidden rounded-2xl border-2 border-sky-300 bg-gradient-to-r from-cyan-50 via-sky-50 to-blue-100 shadow-lg">
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <div className="space-y-0.5">
+                <div className="inline-flex rounded-full bg-sky-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-900">
+                  Τελικό Σύνολο
+                </div>
+                <p className="text-base font-extrabold tracking-wide text-slate-900">ΣΥΝΟΛΟ (1Α + 1Β)</p>
+                <p className="text-[11px] font-medium text-slate-600">
+                  Άθροισμα των τελικών ποσών των δύο παραπάνω πινάκων
+                </p>
+              </div>
+
+              <div className="min-w-[180px] rounded-xl border border-sky-300 bg-white/80 px-4 py-3 text-right shadow-sm backdrop-blur">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-700">Ποσό</div>
+                <div className="mt-0.5 text-2xl font-extrabold leading-none text-sky-700">
+                  {formatAmount(section1ATotal + section1BTotal)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

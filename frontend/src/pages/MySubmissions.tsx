@@ -124,6 +124,7 @@ function SubmissionSection({
             <thead className="bg-slate-100 text-slate-800">
               <tr>
                 <th className="border border-slate-200 px-4 py-3 text-left font-semibold">Ημερομηνία</th>
+                <th className="border border-slate-200 px-4 py-3 text-left font-semibold">Υπόδειγμα</th>
                 <th className="border border-slate-200 px-4 py-3 text-left font-semibold">Ενότητα</th>
                 <th className="border border-slate-200 px-4 py-3 text-left font-semibold">Μοίρες</th>
                 <th className="border border-slate-200 px-4 py-3 text-left font-semibold">Γραμμές</th>
@@ -134,6 +135,13 @@ function SubmissionSection({
               {submissions.map((submission) => (
                 <tr key={submission.id} className="bg-white">
                   <td className="border border-slate-200 px-4 py-3">{formatDateTime(submission.createdAt)}</td>
+                  <td className="border border-slate-200 px-4 py-3">
+                    <div className="font-semibold text-slate-800">{submission.ypodeigmaLabel}</div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      <div>Πτέρυγα: {submission.pterygaLabel ?? '-'}</div>
+                      <div>Έτος: {submission.etos ?? '-'}</div>
+                    </div>
+                  </td>
                   <td className="border border-slate-200 px-4 py-3">
                     <div className="font-semibold text-slate-800">{submission.sectionId}</div>
                     <div className="text-xs text-slate-500">{submission.sectionTitle}</div>
@@ -156,37 +164,45 @@ function SubmissionSection({
 export default function MySubmissions() {
   const location = useLocation();
   const navigate = useNavigate();
-  const state = (location.state ?? null) as MySubmissionsLocationState | null;
-  const [flashMessage, setFlashMessage] = useState<FlashMessage | null>(null);
-  const [submissions, setSubmissions] = useState(() => getStoredYpodeigma2Submissions());
+  const routeState = location.state as (MySubmissionsLocationState & {
+    flashKey?: number;
+  }) | null;
+
+  const submissions = useMemo(() => getStoredYpodeigma2Submissions(), [location.key]);
+
+  const routeFlashMessage: FlashMessage | null =
+    routeState?.flashMessage ??
+    (routeState?.successMessage
+      ? {
+          type: 'success',
+          title: routeState.successMessage,
+        }
+      : null);
+
+  const flashKey = routeState?.flashKey?.toString() ?? (routeFlashMessage ? location.key : null);
+  const [hiddenFlashKey, setHiddenFlashKey] = useState<string | null>(null);
+
+  const visibleFlashMessage =
+    routeFlashMessage && flashKey !== hiddenFlashKey ? routeFlashMessage : null;
 
   useEffect(() => {
-    setSubmissions(getStoredYpodeigma2Submissions());
-  }, [location.key]);
-
-  useEffect(() => {
-    if (!state?.successMessage && !state?.flashMessage) {
+    if (!visibleFlashMessage || !flashKey) {
       return;
     }
 
-    const nextMessage: FlashMessage =
-      state.flashMessage ?? {
-        type: 'success',
-        title: state.successMessage ?? '',
-      };
-
-    setFlashMessage(nextMessage);
-
-    navigate(location.pathname, { replace: true, state: null });
-
     const timeoutId = window.setTimeout(() => {
-      setFlashMessage(null);
+      setHiddenFlashKey(flashKey);
+
+      navigate(location.pathname, {
+        replace: true,
+        state: null,
+      });
     }, 4000);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [location.pathname, navigate, state]);
+  }, [flashKey, location.pathname, navigate, visibleFlashMessage]);
 
   const pendingSubmissions = useMemo(
     () => submissions.filter((submission) => submission.status === 'pending-submission'),
@@ -203,17 +219,21 @@ export default function MySubmissions() {
 
   return (
     <section className="space-y-6">
-      {flashMessage ? (
-        <div className={`rounded-2xl border px-5 py-4 text-sm shadow-sm ${getFlashMessageClasses(flashMessage.type)}`}>
-          <p className="font-semibold">{flashMessage.title}</p>
-          {flashMessage.description ? <p className="mt-1">{flashMessage.description}</p> : null}
+      {visibleFlashMessage ? (
+        <div
+          className={`rounded-2xl border px-5 py-4 text-sm shadow-sm ${getFlashMessageClasses(
+            visibleFlashMessage.type,
+          )}`}
+        >
+          <p className="font-semibold">{visibleFlashMessage.title}</p>
+          {visibleFlashMessage.description ? <p className="mt-1">{visibleFlashMessage.description}</p> : null}
         </div>
       ) : null}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
         <h1 className="text-2xl font-bold text-slate-800">Οι Υποβολές μου</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Εδώ εμφανίζονται όλες οι υποβολές του Υποδείγματος 2, χωρισμένες ανά κατάσταση.
+          Εδώ εμφανίζονται όλες οι υποβολές, χωρισμένες ανά κατάσταση.
         </p>
       </div>
 

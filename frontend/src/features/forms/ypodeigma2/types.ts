@@ -56,6 +56,9 @@ export type Ypodeigma2SubmissionStatus =
 export type Ypodeigma2Submission = {
   id: string;
   createdAt: string;
+  ypodeigmaLabel: string;
+  pterygaLabel: string | null;
+  etos: number | null;
   sectionId: string;
   sectionTitle: string;
   totalAmount: number;

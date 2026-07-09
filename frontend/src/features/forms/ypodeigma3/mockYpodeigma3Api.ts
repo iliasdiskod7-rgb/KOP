@@ -4,44 +4,150 @@ import {
   MOIRA_COLUMN_TYPES,
   OUTSIDE_COLUMN_TYPES,
 } from './helpers';
-import type { Ypodeigma3Config, Ypodeigma3EntryScope, Ypodeigma3Moira, Ypodeigma3Row } from './types';
+import type {
+  Ypodeigma3Config,
+  Ypodeigma3EntryScope,
+  Ypodeigma3Moira,
+  Ypodeigma3Row,
+} from './types';
 
-const MOCK_MOIRES: Ypodeigma3Moira[] = [
-  { id: '337m', label: '337Μ', displayOrder: 1 },
-  { id: '338m', label: '338Μ', displayOrder: 2 },
-  { id: '339m', label: '339Μ', displayOrder: 3 },
-  { id: '340m', label: '340Μ', displayOrder: 4 },
-];
+type FetchYpodeigma3ConfigParams = {
+  monadaId: string;
+  monadaLabel: string;
+  moiraId: string;
+  moiraLabel: string;
+  etos: number;
+  etosStatus: 'editable' | 'view' | null;
+  etosSource: 'existing' | 'new' | null;
+};
 
-const MOCK_ROW_DEFINITIONS: Array<{
+type MockRowDefinition = {
   code: string;
   costElementTitle: string;
+  analysisLevel: number;
   entryScope: Ypodeigma3EntryScope;
-}> = [
-  { code: '1.1', costElementTitle: 'Πληρώματα Α/Φ', entryScope: 'moira-af-ep' },
-  { code: '1.2', costElementTitle: 'Προσωπικό Συντήρησης', entryScope: 'moira-af-ep' },
-  { code: '1.2.1', costElementTitle: 'Συντήρηση Κύριου Υλικού', entryScope: 'moira-af-ep' },
-  { code: '1.2.2', costElementTitle: 'Συντήρηση Βοηθητικού Υλικού', entryScope: 'moira-af-ep' },
-  { code: '1.3', costElementTitle: 'Λοιπές Μετακινήσεις', entryScope: 'outside-moires' },
-  { code: '1.3.1', costElementTitle: 'Μετακινήσεις Διοίκησης', entryScope: 'outside-moires' },
-  { code: '1.3.2', costElementTitle: 'Μετακινήσεις Υποστήριξης', entryScope: 'outside-moires' },
-  { code: '1.3.2.1', costElementTitle: 'Τμήμα Άμεσης Υποστήριξης', entryScope: 'outside-moires' },
-  { code: '1.3.2.2', costElementTitle: 'Επιστασία Τεχνικής Κάλυψης', entryScope: 'outside-moires' },
-  { code: '1.3.2.3', costElementTitle: 'Επιστασία Εφοδιασμού', entryScope: 'outside-moires' },
-  { code: '1.3.2.4', costElementTitle: 'Επιστασία Ασφάλειας Πτήσεων', entryScope: 'outside-moires' },
-  { code: '1.3.3', costElementTitle: 'Λοιπές Μετακινήσεις Μονάδας', entryScope: 'outside-moires' },
-  { code: '1.3.3.1', costElementTitle: 'Μετακινήσεις Επιτελείου', entryScope: 'outside-moires' },
-  { code: '1.3.3.2', costElementTitle: 'Μετακινήσεις Επιμελητείας', entryScope: 'outside-moires' },
-  { code: '1.3.3.3', costElementTitle: 'Μετακινήσεις Υπηρεσιών Βάσης', entryScope: 'outside-moires' },
-  { code: '1.3.4', costElementTitle: 'Υποστήριξη Πτητικού Έργου', entryScope: 'outside-moires' },
-  { code: '1.3.4.1', costElementTitle: 'Ενισχύσεις Υποστήριξης', entryScope: 'outside-moires' },
-  { code: '1.3.5', costElementTitle: 'Μετακινήσεις Ειδικών Συνεργείων', entryScope: 'outside-moires' },
-  { code: '1.3.6', costElementTitle: 'Μετακινήσεις Λοιπού Προσωπικού', entryScope: 'outside-moires' },
-  { code: '6.2', costElementTitle: 'Λοιπά Έξοδα 6.2', entryScope: 'outside-moires' },
-  { code: '6.2.1', costElementTitle: 'Έξοδα Κατηγορίας 6.2.1', entryScope: 'outside-moires' },
-  { code: '6.2.2', costElementTitle: 'Έξοδα Κατηγορίας 6.2.2', entryScope: 'outside-moires' },
-  { code: '6.2.3', costElementTitle: 'Έξοδα Κατηγορίας 6.2.3', entryScope: 'outside-moires' },
-  { code: '6.2.4', costElementTitle: 'Έξοδα Κατηγορίας 6.2.4', entryScope: 'outside-moires' },
+};
+
+const MOCK_ROW_DEFINITIONS: MockRowDefinition[] = [
+  { code: '1.1', costElementTitle: 'Πληρώματα Α/Φ', analysisLevel: 2, entryScope: 'moira-af-ep' },
+  { code: '1.2', costElementTitle: 'Προσωπικό Συντήρησης', analysisLevel: 2, entryScope: 'moira-af-ep' },
+  { code: '1.2.1', costElementTitle: 'Συντήρηση Κύριου Υλικού', analysisLevel: 3, entryScope: 'moira-af-ep' },
+  {
+    code: '1.2.2',
+    costElementTitle: 'Συντήρηση Βοηθητικού Υλικού',
+    analysisLevel: 3,
+    entryScope: 'moira-af-ep',
+  },
+  { code: '1.3', costElementTitle: 'Λοιπές Μετακινήσεις', analysisLevel: 2, entryScope: 'outside-moires' },
+  {
+    code: '1.3.1',
+    costElementTitle: 'Μετακινήσεις Διοίκησης',
+    analysisLevel: 3,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.2',
+    costElementTitle: 'Μετακινήσεις Υποστήριξης',
+    analysisLevel: 3,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.2.1',
+    costElementTitle: 'Τμήμα Άμεσης Υποστήριξης',
+    analysisLevel: 4,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.2.2',
+    costElementTitle: 'Επιστασία Τεχνικής Κάλυψης',
+    analysisLevel: 4,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.2.3',
+    costElementTitle: 'Επιστασία Εφοδιασμού',
+    analysisLevel: 4,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.2.4',
+    costElementTitle: 'Επιστασία Ασφάλειας Πτήσεων',
+    analysisLevel: 4,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.3',
+    costElementTitle: 'Λοιπές Μετακινήσεις Μονάδας',
+    analysisLevel: 3,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.3.1',
+    costElementTitle: 'Μετακινήσεις Επιτελείου',
+    analysisLevel: 4,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.3.2',
+    costElementTitle: 'Μετακινήσεις Επιμελητείας',
+    analysisLevel: 4,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.3.3',
+    costElementTitle: 'Μετακινήσεις Υπηρεσιών Βάσης',
+    analysisLevel: 4,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.4',
+    costElementTitle: 'Υποστήριξη Πτητικού Έργου',
+    analysisLevel: 3,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.4.1',
+    costElementTitle: 'Ενισχύσεις Υποστήριξης',
+    analysisLevel: 4,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.5',
+    costElementTitle: 'Μετακινήσεις Ειδικών Συνεργείων',
+    analysisLevel: 3,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '1.3.6',
+    costElementTitle: 'Μετακινήσεις Λοιπού Προσωπικού',
+    analysisLevel: 3,
+    entryScope: 'outside-moires',
+  },
+  { code: '6.2', costElementTitle: 'Λοιπά Έξοδα 6.2', analysisLevel: 2, entryScope: 'outside-moires' },
+  {
+    code: '6.2.1',
+    costElementTitle: 'Έξοδα Κατηγορίας 6.2.1',
+    analysisLevel: 3,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '6.2.2',
+    costElementTitle: 'Έξοδα Κατηγορίας 6.2.2',
+    analysisLevel: 3,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '6.2.3',
+    costElementTitle: 'Έξοδα Κατηγορίας 6.2.3',
+    analysisLevel: 3,
+    entryScope: 'outside-moires',
+  },
+  {
+    code: '6.2.4',
+    costElementTitle: 'Έξοδα Κατηγορίας 6.2.4',
+    analysisLevel: 3,
+    entryScope: 'outside-moires',
+  },
 ];
 
 function createEmptyValues(moires: Ypodeigma3Moira[]) {
@@ -65,19 +171,25 @@ function createMockRows(moires: Ypodeigma3Moira[]): Ypodeigma3Row[] {
     id: `yp3-row-${index + 1}`,
     code: rowDefinition.code,
     costElementTitle: rowDefinition.costElementTitle,
+    analysisLevel: rowDefinition.analysisLevel,
     displayOrder: index + 1,
     entryScope: rowDefinition.entryScope,
     values: createEmptyValues(moires),
   }));
 }
 
-export function fetchYpodeigma3Config(): Promise<Ypodeigma3Config> {
-  const sortedMoires = [...MOCK_MOIRES].sort((left, right) => left.displayOrder - right.displayOrder);
+export function fetchYpodeigma3Config({
+  monadaId,
+  monadaLabel,
+  moiraId,
+  moiraLabel,
+}: FetchYpodeigma3ConfigParams): Promise<Ypodeigma3Config> {
+  const sortedMoires = [{ id: moiraId, label: moiraLabel, displayOrder: 1 }];
 
   return Promise.resolve({
     unit: {
-      id: '116pm',
-      name: '116ΠΜ',
+      id: monadaId,
+      name: monadaLabel,
     },
     moires: sortedMoires,
     rows: createMockRows(sortedMoires),

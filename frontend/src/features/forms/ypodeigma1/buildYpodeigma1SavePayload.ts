@@ -21,6 +21,7 @@ export function buildYpodeigma1SavePayload({
         monadaId: entry.monadaId,
         table1ARows: entry.table1ARows,
         table1BRows: entry.table1BRows,
+        table1CRows: entry.table1CRows,
       })),
   };
 }

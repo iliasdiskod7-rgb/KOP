@@ -15,6 +15,7 @@ export type Ypodeigma3Row = {
   id: string;
   code: string;
   costElementTitle: string;
+  analysisLevel: number;
   displayOrder: number;
   entryScope: Ypodeigma3EntryScope;
   values: Record<string, number | null>;

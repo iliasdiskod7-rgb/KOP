@@ -46,10 +46,18 @@ const MOCK_STARTED_ETOS_RECORDS: MockStartedEtosRecord[] = [
   { ypodeigmaId: 3, monadaId: '117pm', etos: 2026, state: 'temporary-saved' },
 ];
 
+function buildOptionsSnapshot(): YpodeigmaControlsOptions {
+  return {
+    monades: [...MOCK_OPTIONS.monades],
+    moires: [...MOCK_OPTIONS.moires],
+    etoi: [...MOCK_OPTIONS.etoi].sort((left, right) => left.value - right.value),
+  };
+}
+
 export async function fetchYpodeigmaControlsOptions(): Promise<YpodeigmaControlsOptions> {
   return new Promise((resolve) => {
     window.setTimeout(() => {
-      resolve(MOCK_OPTIONS);
+      resolve(buildOptionsSnapshot());
     }, 250);
   });
 }
@@ -88,7 +96,15 @@ export async function startNewEtos({
   ypodeigmaId,
   monadaId,
   etos,
-}: StartNewEtosParams): Promise<{ etos: number; status: 'editable' }> {
+}: StartNewEtosParams): Promise<{
+  etos: number;
+  status: 'editable';
+  etosOption: {
+    value: number;
+    label: string;
+    status: 'editable';
+  };
+}> {
   return new Promise((resolve) => {
     window.setTimeout(() => {
       const existsAlready = MOCK_STARTED_ETOS_RECORDS.some(
@@ -104,9 +120,24 @@ export async function startNewEtos({
         });
       }
 
+      const existingEtosOption = MOCK_OPTIONS.etoi.find((option) => option.value === etos);
+
+      if (!existingEtosOption) {
+        MOCK_OPTIONS.etoi.push({
+          value: etos,
+          label: String(etos),
+          status: 'editable',
+        });
+      }
+
       resolve({
         etos,
         status: 'editable',
+        etosOption: {
+          value: etos,
+          label: String(etos),
+          status: 'editable',
+        },
       });
     }, 250);
   });

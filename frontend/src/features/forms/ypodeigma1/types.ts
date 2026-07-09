@@ -3,6 +3,7 @@ export type Ypodeigma1TableARow = {
   code: string;
   title: string;
   amount: number | null;
+  analysisLevel?: number;
 };
 
 export type Ypodeigma1TableBRow = {
@@ -10,6 +11,15 @@ export type Ypodeigma1TableBRow = {
   code: string;
   title: string;
   amount: number | null;
+  analysisLevel?: number;
+};
+
+export type Ypodeigma1TableCRow = {
+  id: string;
+  code: string;
+  title: string;
+  amount: number | null;
+  analysisLevel?: number;
 };
 
 export type Ypodeigma1MoiraData = {
@@ -21,6 +31,7 @@ export type Ypodeigma1MoiraData = {
   status: 'editable' | 'view';
   table1ARows: Ypodeigma1TableARow[];
   table1BRows: Ypodeigma1TableBRow[];
+  table1CRows: Ypodeigma1TableCRow[];
 };
 
 export type Ypodeigma1MoiraCacheEntry = {
@@ -32,6 +43,7 @@ export type Ypodeigma1MoiraCacheEntry = {
   status: 'editable' | 'view';
   table1ARows: Ypodeigma1TableARow[];
   table1BRows: Ypodeigma1TableBRow[];
+  table1CRows: Ypodeigma1TableCRow[];
 };
 
 export type Ypodeigma1CacheByMoira = Record<string, Ypodeigma1MoiraCacheEntry>;
@@ -52,6 +64,7 @@ export type Ypodeigma1SavePayload = {
     monadaId: string;
     table1ARows: Ypodeigma1TableARow[];
     table1BRows: Ypodeigma1TableBRow[];
+    table1CRows: Ypodeigma1TableCRow[];
   }>;
 };
 

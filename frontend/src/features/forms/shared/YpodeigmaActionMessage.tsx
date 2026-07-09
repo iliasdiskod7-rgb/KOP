@@ -34,17 +34,17 @@ export default function YpodeigmaActionMessage({ message }: YpodeigmaActionMessa
       ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
       : message.type === 'error'
         ? 'border-rose-200 bg-rose-50 text-rose-800'
-        : 'border-sky-200 bg-sky-50 text-sky-800';
+        : 'border-blue-200 bg-blue-50 text-blue-800';
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 shadow-sm ${palette}`}>
+    <div className={`rounded-2xl border px-4 py-2.5 shadow-sm ${palette}`}>
       <div className="flex items-start gap-3">
-        <div className="mt-0.5">
+        <div className="mt-0.5 shrink-0">
           <MessageIcon type={message.type} />
         </div>
         <div>
           <p className="text-sm font-semibold">{message.title}</p>
-          {message.description ? <p className="mt-1 text-sm opacity-90">{message.description}</p> : null}
+          {message.description ? <p className="mt-0.5 text-xs leading-5 opacity-90">{message.description}</p> : null}
         </div>
       </div>
     </div>

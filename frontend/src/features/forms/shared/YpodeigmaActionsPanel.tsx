@@ -10,6 +10,14 @@ type YpodeigmaActionsPanelProps = {
   onReturnForCorrection?: () => void | Promise<void>;
 };
 
+function ShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-current">
+      <path d="M12 2 4 5v6c0 5.2 3.4 10 8 11 4.6-1 8-5.8 8-11V5l-8-3Zm1 13h-2v-4H8V9h3V6h2v3h3v2h-3v4Z" />
+    </svg>
+  );
+}
+
 function PrinterIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
@@ -45,48 +53,54 @@ export default function YpodeigmaActionsPanel({
 }: YpodeigmaActionsPanelProps) {
   if (!isVisible) {
     return (
-      <aside className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 p-6 shadow-sm">
-        <div className="space-y-2">
-          <h2 className="text-xl font-bold text-slate-500">Ενέργειες</h2>
-          <p className="text-sm text-slate-500">
-            {role === 'admin'
-              ? 'Οι ενέργειες του διαχειριστή θα εμφανιστούν μόλις επιλεγούν έτος, μονάδα και μοίρα.'
-              : 'Οι ενέργειες θα εμφανιστούν μόλις επιλεγούν έτος, μονάδα και μοίρα.'}
-          </p>
+      <aside className="rounded-[20px] border border-slate-200 bg-white px-4 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+        <div className="mb-2 flex items-center gap-2 text-sky-700">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50">
+            <ShieldIcon />
+          </div>
+          <h2 className="text-sm font-bold text-sky-700">Ενέργειες</h2>
         </div>
+
+        <p className="text-xs leading-6 text-slate-500">
+          Οι ενέργειες θα εμφανιστούν μόλις επιλεγούν έτος, μονάδα και μοίρα.
+        </p>
       </aside>
     );
   }
 
   if (role !== 'admin' && isReadOnlyYear) {
     return (
-      <aside className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 p-6 shadow-sm">
-        <div className="space-y-2">
-          <h2 className="text-xl font-bold text-slate-500">Ενέργειες</h2>
-          <p className="text-sm text-slate-500">
-            Το επιλεγμένο έτος είναι μόνο για προβολή, οπότε δεν υπάρχουν διαθέσιμες ενέργειες.
-          </p>
+      <aside className="rounded-[20px] border border-slate-200 bg-white px-4 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+        <div className="mb-2 flex items-center gap-2 text-sky-700">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50">
+            <ShieldIcon />
+          </div>
+          <h2 className="text-sm font-bold text-sky-700">Ενέργειες</h2>
         </div>
+
+        <p className="text-xs leading-6 text-slate-500">
+          Το επιλεγμένο έτος είναι διαθέσιμο μόνο για προβολή.
+        </p>
       </aside>
     );
   }
 
   return (
-    <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-sky-800">Ενέργειες</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Επιλέξτε την ενέργεια που θέλετε να εκτελέσετε για το τρέχον υπόδειγμα.
-        </p>
+    <aside className="rounded-[20px] border border-slate-200 bg-white px-4 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+      <div className="mb-2 flex items-center gap-2 text-sky-700">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50">
+          <ShieldIcon />
+        </div>
+        <h2 className="text-sm font-bold text-sky-700">Ενέργειες</h2>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-1.5">
         {role === 'admin' ? (
           <button
             type="button"
             onClick={() => void onReturnForCorrection?.()}
             disabled={isBusy}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:hover:scale-100"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-500 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300"
           >
             <ReturnIcon />
             {isBusy ? 'Επεξεργασία...' : 'Επιστροφή για Διόρθωση'}
@@ -97,7 +111,7 @@ export default function YpodeigmaActionsPanel({
               type="button"
               onClick={() => void onTemporarySave()}
               disabled={isBusy}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:hover:scale-100"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-blue-500 bg-white px-4 py-1.5 text-[13px] font-semibold text-blue-700 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:bg-blue-50 hover:shadow-md disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-300 disabled:hover:translate-y-0 disabled:hover:scale-100"
             >
               <PrinterIcon />
               {isBusy ? 'Αποθήκευση...' : 'Προσωρινή Αποθήκευση'}
@@ -107,7 +121,7 @@ export default function YpodeigmaActionsPanel({
               type="button"
               onClick={() => void onFinalSubmit?.()}
               disabled={isBusy}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:hover:scale-100"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-700 to-blue-500 px-4 py-1.5 text-[13px] font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-md disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:hover:translate-y-0 disabled:hover:scale-100"
             >
               <PaperPlaneIcon />
               {isBusy ? 'Υποβολή...' : 'Οριστική Υποβολή'}
@@ -115,6 +129,12 @@ export default function YpodeigmaActionsPanel({
           </>
         )}
       </div>
+
+      <p className="mt-2 text-[10px] leading-4.5 text-slate-500">
+        {role === 'admin'
+          ? 'Ο διαχειριστής μπορεί μόνο να επιστρέψει την εγγραφή για διόρθωση.'
+          : 'Η αποθήκευση και η υποβολή αφορούν όλα τα δεδομένα των επιτρεπόμενων Μονάδων, όχι μόνο των πινάκων που προβάλλονται αυτή τη στιγμή.'}
+      </p>
     </aside>
   );
 }

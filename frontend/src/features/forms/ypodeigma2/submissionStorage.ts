@@ -60,6 +60,10 @@ function toSubmissionRecord(value: unknown): Ypodeigma2Submission | null {
   return {
     id: candidate.id,
     createdAt: candidate.createdAt,
+    ypodeigmaLabel:
+      typeof candidate.ypodeigmaLabel === 'string' ? candidate.ypodeigmaLabel : 'Υπόδειγμα 2',
+    pterygaLabel: typeof candidate.pterygaLabel === 'string' ? candidate.pterygaLabel : null,
+    etos: typeof candidate.etos === 'number' ? candidate.etos : null,
     sectionId: candidate.sectionId,
     sectionTitle: candidate.sectionTitle,
     totalAmount: candidate.totalAmount,
