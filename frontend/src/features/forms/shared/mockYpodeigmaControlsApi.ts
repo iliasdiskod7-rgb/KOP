@@ -19,6 +19,13 @@ type StartNewEtosParams = {
   etos: number;
 };
 
+type PersistStartedEtosParams = {
+  ypodeigmaId: number;
+  monadaId: string;
+  etos: number;
+  state: 'temporary-saved' | 'submitted';
+};
+
 const MOCK_OPTIONS: YpodeigmaControlsOptions = {
   monades: [
     { id: '110pm', name: '110ΠΜ', type: 'monada' },
@@ -93,8 +100,8 @@ export async function checkNewEtosAvailability({
 }
 
 export async function startNewEtos({
-  ypodeigmaId,
-  monadaId,
+  ypodeigmaId: _ypodeigmaId,
+  monadaId: _monadaId,
   etos,
 }: StartNewEtosParams): Promise<{
   etos: number;
@@ -107,29 +114,6 @@ export async function startNewEtos({
 }> {
   return new Promise((resolve) => {
     window.setTimeout(() => {
-      const existsAlready = MOCK_STARTED_ETOS_RECORDS.some(
-        (record) => record.ypodeigmaId === ypodeigmaId && record.monadaId === monadaId && record.etos === etos,
-      );
-
-      if (!existsAlready) {
-        MOCK_STARTED_ETOS_RECORDS.push({
-          ypodeigmaId,
-          monadaId,
-          etos,
-          state: 'temporary-saved',
-        });
-      }
-
-      const existingEtosOption = MOCK_OPTIONS.etoi.find((option) => option.value === etos);
-
-      if (!existingEtosOption) {
-        MOCK_OPTIONS.etoi.push({
-          value: etos,
-          label: String(etos),
-          status: 'editable',
-        });
-      }
-
       resolve({
         etos,
         status: 'editable',
@@ -141,4 +125,36 @@ export async function startNewEtos({
       });
     }, 250);
   });
+}
+
+export function persistStartedEtos({
+  ypodeigmaId,
+  monadaId,
+  etos,
+  state,
+}: PersistStartedEtosParams) {
+  const existingRecord = MOCK_STARTED_ETOS_RECORDS.find(
+    (record) => record.ypodeigmaId === ypodeigmaId && record.monadaId === monadaId && record.etos === etos,
+  );
+
+  if (existingRecord) {
+    existingRecord.state = state;
+  } else {
+    MOCK_STARTED_ETOS_RECORDS.push({
+      ypodeigmaId,
+      monadaId,
+      etos,
+      state,
+    });
+  }
+
+  const existingEtosOption = MOCK_OPTIONS.etoi.find((option) => option.value === etos);
+
+  if (!existingEtosOption) {
+    MOCK_OPTIONS.etoi.push({
+      value: etos,
+      label: String(etos),
+      status: 'editable',
+    });
+  }
 }
