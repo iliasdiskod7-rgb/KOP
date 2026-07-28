@@ -72,6 +72,14 @@ export function formatAmount(value: number | null) {
   }).format(value);
 }
 
+export function calculateP1(sd: number | null, sa: number | null) {
+  if (sd === null || sd === 0 || sa === null) {
+    return null;
+  }
+
+  return Math.max(0, Math.round((1 - sa / sd) * 100 * 100) / 100);
+}
+
 export function getEditableKeysForScope(
   entryScope: Ypodeigma3EntryScope,
   moires: Ypodeigma3Moira[],

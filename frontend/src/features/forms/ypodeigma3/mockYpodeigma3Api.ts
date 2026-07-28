@@ -4,6 +4,7 @@ import {
   MOIRA_COLUMN_TYPES,
   OUTSIDE_COLUMN_TYPES,
 } from './helpers';
+import type { MoiraColumnType, OutsideColumnType } from './helpers';
 import type {
   Ypodeigma3Config,
   Ypodeigma3EntryScope,
@@ -27,6 +28,9 @@ type MockRowDefinition = {
   analysisLevel: number;
   entryScope: Ypodeigma3EntryScope;
 };
+
+type MockMoiraValues = Partial<Record<MoiraColumnType, number>>;
+type MockOutsideValues = Partial<Record<OutsideColumnType, number>>;
 
 const MOCK_ROW_DEFINITIONS: MockRowDefinition[] = [
   { code: '1.1', costElementTitle: 'Πληρώματα Α/Φ', analysisLevel: 2, entryScope: 'moira-af-ep' },
@@ -150,7 +154,33 @@ const MOCK_ROW_DEFINITIONS: MockRowDefinition[] = [
   },
 ];
 
-function createEmptyValues(moires: Ypodeigma3Moira[]) {
+// Προσωρινές τιμές backend για ανακτημένα έτη. Οι parent γραμμές παραμένουν
+// κενές, επειδή τα σύνολά τους υπολογίζονται δυναμικά από τα leaf rows.
+const MOCK_MOIRA_VALUES_BY_CODE: Record<string, MockMoiraValues> = {
+  '1.1': { sd: 24, sa: 20, op: 1_200, opfs: 240 },
+  '1.2.1': { sd: 18, sa: 16, op: 840, opfs: 120 },
+  '1.2.2': { sd: 10, sa: 8, op: 420, opfs: 60 },
+};
+
+const MOCK_OUTSIDE_VALUES_BY_CODE: Record<string, MockOutsideValues> = {
+  '1.3.1': { sd: 12, sa: 10 },
+  '1.3.2.1': { sd: 8, sa: 7 },
+  '1.3.2.2': { sd: 6, sa: 5 },
+  '1.3.2.3': { sd: 5, sa: 4 },
+  '1.3.2.4': { sd: 4, sa: 3 },
+  '1.3.3.1': { sd: 9, sa: 8 },
+  '1.3.3.2': { sd: 7, sa: 6 },
+  '1.3.3.3': { sd: 11, sa: 9 },
+  '1.3.4.1': { sd: 14, sa: 12 },
+  '1.3.5': { sd: 6, sa: 5 },
+  '1.3.6': { sd: 5, sa: 4 },
+  '6.2.1': { sd: 8, sa: 7 },
+  '6.2.2': { sd: 7, sa: 6 },
+  '6.2.3': { sd: 6, sa: 5 },
+  '6.2.4': { sd: 5, sa: 4 },
+};
+
+function createEmptyValues(moires: Ypodeigma3Moira[]): Record<string, number | null> {
   const outsideValues = Object.fromEntries(
     OUTSIDE_COLUMN_TYPES.map((columnType) => [getOutsideAmountKey(columnType), null]),
   );
@@ -163,10 +193,61 @@ function createEmptyValues(moires: Ypodeigma3Moira[]) {
   return {
     ...outsideValues,
     ...moiraValues,
-  } satisfies Record<string, number | null>;
+  };
 }
 
-function createMockRows(moires: Ypodeigma3Moira[]): Ypodeigma3Row[] {
+function createMockValues(
+  rowDefinition: MockRowDefinition,
+  moires: Ypodeigma3Moira[],
+  includeExistingValues: boolean,
+) {
+  const values = createEmptyValues(moires);
+
+  if (!includeExistingValues) {
+    return values;
+  }
+
+  if (rowDefinition.entryScope === 'moira-af-ep') {
+    const mockValues = MOCK_MOIRA_VALUES_BY_CODE[rowDefinition.code];
+
+    if (!mockValues) {
+      return values;
+    }
+
+    moires.forEach((moira) => {
+      MOIRA_COLUMN_TYPES.forEach((columnType) => {
+        const value = mockValues[columnType];
+
+        if (value !== undefined) {
+          values[getMoiraAmountKey(moira.id, columnType)] = value;
+        }
+      });
+    });
+
+    return values;
+  }
+
+  const mockValues = MOCK_OUTSIDE_VALUES_BY_CODE[rowDefinition.code];
+
+  if (!mockValues) {
+    return values;
+  }
+
+  OUTSIDE_COLUMN_TYPES.forEach((columnType) => {
+    const value = mockValues[columnType];
+
+    if (value !== undefined) {
+      values[getOutsideAmountKey(columnType)] = value;
+    }
+  });
+
+  return values;
+}
+
+function createMockRows(
+  moires: Ypodeigma3Moira[],
+  includeExistingValues: boolean,
+): Ypodeigma3Row[] {
   return MOCK_ROW_DEFINITIONS.map((rowDefinition, index) => ({
     id: `yp3-row-${index + 1}`,
     code: rowDefinition.code,
@@ -174,7 +255,7 @@ function createMockRows(moires: Ypodeigma3Moira[]): Ypodeigma3Row[] {
     analysisLevel: rowDefinition.analysisLevel,
     displayOrder: index + 1,
     entryScope: rowDefinition.entryScope,
-    values: createEmptyValues(moires),
+    values: createMockValues(rowDefinition, moires, includeExistingValues),
   }));
 }
 
@@ -183,8 +264,10 @@ export function fetchYpodeigma3Config({
   monadaLabel,
   moiraId,
   moiraLabel,
+  etosSource,
 }: FetchYpodeigma3ConfigParams): Promise<Ypodeigma3Config> {
   const sortedMoires = [{ id: moiraId, label: moiraLabel, displayOrder: 1 }];
+  const includeExistingValues = etosSource !== 'new';
 
   return Promise.resolve({
     unit: {
@@ -192,6 +275,6 @@ export function fetchYpodeigma3Config({
       name: monadaLabel,
     },
     moires: sortedMoires,
-    rows: createMockRows(sortedMoires),
+    rows: createMockRows(sortedMoires, includeExistingValues),
   });
 }

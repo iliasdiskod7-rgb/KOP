@@ -23,6 +23,7 @@ type Ypodeigma1FormProps = {
   selectedEtosStatus: 'editable' | 'view' | null;
   selectedEtosSource: 'existing' | 'new' | null;
   onRegisterActions?: (actions: Ypodeigma1FormActions | null) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 function updateTable1ARows(
@@ -110,6 +111,7 @@ export default function Ypodeigma1Form({
   selectedEtosStatus,
   selectedEtosSource,
   onRegisterActions,
+  onDirtyChange,
 }: Ypodeigma1FormProps) {
   const [cacheByMoira, setCacheByMoira] = useState<Ypodeigma1CacheByMoira>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -125,7 +127,8 @@ export default function Ypodeigma1Form({
 
     previousSelectionRef.current = selectionKey;
     setCacheByMoira({});
-  }, [selectedEtos, selectedEtosSource, selectedEtosStatus]);
+    onDirtyChange?.(false);
+  }, [onDirtyChange, selectedEtos, selectedEtosSource, selectedEtosStatus]);
 
   useEffect(() => {
     if (!selectedEtos || !selectedMonadaId || !selectedMoiraId) {
@@ -259,20 +262,24 @@ export default function Ypodeigma1Form({
   ]);
 
   const handleTable1AAmountChange = (rowId: string, rawValue: string) => {
-    if (!selectedMoiraId || !isEditable) {
+    const targetRow = currentEntry?.table1ARows.find((row) => row.id === rowId);
+
+    if (
+      !selectedMoiraId ||
+      !isEditable ||
+      !currentEntry ||
+      !targetRow ||
+      !isLeafRow(targetRow, currentEntry.table1ARows)
+    ) {
       return;
     }
+
+    onDirtyChange?.(true);
 
     setCacheByMoira((currentCache) => {
       const currentEntryForMoira = currentCache[selectedMoiraId];
 
       if (!currentEntryForMoira) {
-        return currentCache;
-      }
-
-      const targetRow = currentEntryForMoira.table1ARows.find((row) => row.id === rowId);
-
-      if (!targetRow || !isLeafRow(targetRow, currentEntryForMoira.table1ARows)) {
         return currentCache;
       }
 
@@ -287,20 +294,24 @@ export default function Ypodeigma1Form({
   };
 
   const handleTable1BAmountChange = (rowId: string, rawValue: string) => {
-    if (!selectedMoiraId || !isEditable) {
+    const targetRow = currentEntry?.table1BRows.find((row) => row.id === rowId);
+
+    if (
+      !selectedMoiraId ||
+      !isEditable ||
+      !currentEntry ||
+      !targetRow ||
+      !isLeafRow(targetRow, currentEntry.table1BRows)
+    ) {
       return;
     }
+
+    onDirtyChange?.(true);
 
     setCacheByMoira((currentCache) => {
       const currentEntryForMoira = currentCache[selectedMoiraId];
 
       if (!currentEntryForMoira) {
-        return currentCache;
-      }
-
-      const targetRow = currentEntryForMoira.table1BRows.find((row) => row.id === rowId);
-
-      if (!targetRow || !isLeafRow(targetRow, currentEntryForMoira.table1BRows)) {
         return currentCache;
       }
 
@@ -315,20 +326,24 @@ export default function Ypodeigma1Form({
   };
 
   const handleTable1CAmountChange = (rowId: string, rawValue: string) => {
-    if (!selectedMoiraId || !isEditable) {
+    const targetRow = currentEntry?.table1CRows.find((row) => row.id === rowId);
+
+    if (
+      !selectedMoiraId ||
+      !isEditable ||
+      !currentEntry ||
+      !targetRow ||
+      !isLeafRow(targetRow, currentEntry.table1CRows)
+    ) {
       return;
     }
+
+    onDirtyChange?.(true);
 
     setCacheByMoira((currentCache) => {
       const currentEntryForMoira = currentCache[selectedMoiraId];
 
       if (!currentEntryForMoira) {
-        return currentCache;
-      }
-
-      const targetRow = currentEntryForMoira.table1CRows.find((row) => row.id === rowId);
-
-      if (!targetRow || !isLeafRow(targetRow, currentEntryForMoira.table1CRows)) {
         return currentCache;
       }
 

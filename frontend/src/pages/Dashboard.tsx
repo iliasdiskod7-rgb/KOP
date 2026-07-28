@@ -146,7 +146,17 @@ export default function Dashboard({ onLogout, username, role }: DashboardProps) 
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-6 flex flex-col gap-3 sm:grid sm:grid-cols-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingTab(null);
+                }}
+                disabled={isGuardBusy}
+                className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-rose-700 to-red-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:from-rose-800 hover:to-red-600 hover:shadow-md disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:hover:translate-y-0 disabled:hover:scale-100"
+              >
+                Επιστροφή
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -164,7 +174,7 @@ export default function Dashboard({ onLogout, username, role }: DashboardProps) 
                   });
                 }}
                 disabled={isGuardBusy}
-                className="inline-flex items-center justify-center rounded-xl border border-blue-500 bg-white px-5 py-3 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-300"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-sky-600 to-blue-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-md disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-white disabled:hover:translate-y-0 disabled:hover:scale-100"
               >
                 Προσωρινή Αποθήκευση
               </button>
@@ -186,7 +196,7 @@ export default function Dashboard({ onLogout, username, role }: DashboardProps) 
                   });
                 }}
                 disabled={isGuardBusy}
-                className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-700 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-700 to-blue-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-md disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:hover:translate-y-0 disabled:hover:scale-100"
               >
                 Οριστική Υποβολή
               </button>
@@ -218,7 +228,7 @@ export default function Dashboard({ onLogout, username, role }: DashboardProps) 
                   navigate(`/dashboard/ypodeigma/${nextId}`);
                 }}
                 disabled={isGuardBusy}
-                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-slate-600 to-slate-500 px-4 py-3 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:shadow-md disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-white disabled:hover:translate-y-0 disabled:hover:scale-100"
               >
                 Συνέχεια χωρίς αποθήκευση
               </button>

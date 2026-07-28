@@ -6,6 +6,8 @@ type YpodeigmaControlsPanelProps = {
   role: AppUserRole;
   value: YpodeigmaControlsValue;
   options: YpodeigmaControlsOptions;
+  showTableSelection: boolean;
+  showMoiraSelection?: boolean;
   isLoading?: boolean;
   isStartingNewYear?: boolean;
   onChange: (nextValue: YpodeigmaControlsValue) => void;
@@ -70,6 +72,8 @@ export default function YpodeigmaControlsPanel({
   role,
   value,
   options,
+  showTableSelection,
+  showMoiraSelection = true,
   isLoading = false,
   isStartingNewYear = false,
   onChange,
@@ -210,16 +214,23 @@ export default function YpodeigmaControlsPanel({
         </div>
       </div>
 
-      <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-2 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
-        <div className="mb-1.5 flex items-center gap-2 text-sky-700">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50">
-            <TableIcon />
+      {showTableSelection ? (
+        <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-2 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+          <div className="mb-1.5 flex items-center gap-2 text-sky-700">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50">
+              <TableIcon />
+            </div>
+            <h2 className="text-sm font-bold text-sky-700">Προβολή πίνακα</h2>
           </div>
-          <h2 className="text-sm font-bold text-sky-700">Προβολή πίνακα</h2>
-        </div>
 
-        {hasSelectedYear ? (
-          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:max-w-[58rem]">
+          {hasSelectedYear ? (
+          <div
+            className={`grid gap-2 ${
+              showMoiraSelection
+                ? 'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:max-w-[58rem]'
+                : 'max-w-[29rem]'
+            }`}
+          >
             <label className="block min-w-0">
               <span className="mb-0.5 block text-[11px] font-medium text-slate-700">Μονάδα</span>
               <select
@@ -237,36 +248,35 @@ export default function YpodeigmaControlsPanel({
               </select>
             </label>
 
-            <label className="block min-w-0">
-              <span className="mb-0.5 block text-[11px] font-medium text-slate-700">Μοίρα</span>
-              <select
-                className={getControlClassName(isLoading || !value.monadaId)}
-                value={value.moiraId ?? ''}
-                onChange={(event) =>
-                  onChange({
-                    ...value,
-                    moiraId: event.target.value || null,
-                  })
-                }
-                disabled={isLoading || !value.monadaId}
-              >
-                <option value="">
-                  {value.monadaId ? 'Επιλέξτε Μοίρα...' : 'Επιλέξτε πρώτα Μονάδα'}
-                </option>
-                {filteredMoires.map((moira) => (
-                  <option key={moira.id} value={moira.id}>
-                    {moira.name}
+            {showMoiraSelection ? (
+              <label className="block min-w-0">
+                <span className="mb-0.5 block text-[11px] font-medium text-slate-700">Μοίρα</span>
+                <select
+                  className={getControlClassName(isLoading || !value.monadaId)}
+                  value={value.moiraId ?? ''}
+                  onChange={(event) =>
+                    onChange({
+                      ...value,
+                      moiraId: event.target.value || null,
+                    })
+                  }
+                  disabled={isLoading || !value.monadaId}
+                >
+                  <option value="">
+                    {value.monadaId ? 'Επιλέξτε Μοίρα...' : 'Επιλέξτε πρώτα Μονάδα'}
                   </option>
-                ))}
-              </select>
-            </label>
+                  {filteredMoires.map((moira) => (
+                    <option key={moira.id} value={moira.id}>
+                      {moira.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
-        ) : (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-2 text-xs text-slate-500">
-            Επιλέξτε πρώτα έτος για να εμφανιστούν η Μονάδα και η Μοίρα.
-          </div>
-        )}
-      </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

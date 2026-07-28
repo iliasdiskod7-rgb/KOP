@@ -22,6 +22,22 @@ export type Ypodeigma4Row = {
 export type Ypodeigma4Config = {
   wing: Ypodeigma4Unit;
   unit: Ypodeigma4Unit;
+  status: 'editable' | 'view';
   moires: Ypodeigma4Moira[];
   rows: Ypodeigma4Row[];
+};
+
+export type Ypodeigma4SaveRequest = {
+  wingId: string;
+  etos: number;
+  rows: Array<{
+    rowId: string;
+    metricType: Ypodeigma4MetricType;
+    values: Record<string, number | null>;
+  }>;
+};
+
+export type Ypodeigma4FormActions = {
+  saveDraft: () => Promise<void>;
+  submitFinal: () => Promise<void>;
 };

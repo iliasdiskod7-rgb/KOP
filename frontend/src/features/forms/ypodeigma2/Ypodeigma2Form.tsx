@@ -18,6 +18,7 @@ type Ypodeigma2FormProps = {
   onRegisterReturnForCorrection?: (action: (() => void) | null) => void;
   onRegisterSaveDraft?: (action: (() => void) | null) => void;
   onRegisterSubmitFinal?: (action: (() => void) | null) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 function parseAmount(rawValue: string): number | null {
@@ -61,6 +62,7 @@ export default function Ypodeigma2Form({
   onRegisterReturnForCorrection,
   onRegisterSaveDraft,
   onRegisterSubmitFinal,
+  onDirtyChange,
 }: Ypodeigma2FormProps) {
   const [section, setSection] = useState<Ypodeigma2SectionConfig | null>(null);
   const [rows, setRows] = useState<Ypodeigma2Row[]>([]);
@@ -70,6 +72,7 @@ export default function Ypodeigma2Form({
     setSection(null);
     setRows([]);
     setSection1BRows([]);
+    onDirtyChange?.(false);
 
     if (!selectedMoiraId || !selectedEtos) {
       return;
@@ -113,7 +116,7 @@ export default function Ypodeigma2Form({
     return () => {
       mounted = false;
     };
-  }, [selectedEtos, selectedEtosSource, selectedEtosStatus, selectedMoiraId]);
+  }, [onDirtyChange, selectedEtos, selectedEtosSource, selectedEtosStatus, selectedMoiraId]);
 
   const isEditable = section?.status === 'editable' && role !== 'admin';
   const section1ATotal = section ? calculateHierarchicalGrandTotal(rows, section.moires) : 0;
@@ -262,6 +265,8 @@ export default function Ypodeigma2Form({
       return;
     }
 
+    onDirtyChange?.(true);
+
     setCurrentRows((existingRows) =>
       existingRows.map((row) => {
         if (row.id !== rowId) {
@@ -287,6 +292,8 @@ export default function Ypodeigma2Form({
     if (!isEditable) {
       return;
     }
+
+    onDirtyChange?.(true);
 
     setSection1BRows((currentRows) =>
       currentRows.map((row) => {

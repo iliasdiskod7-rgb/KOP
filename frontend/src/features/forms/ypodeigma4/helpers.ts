@@ -16,6 +16,17 @@ export function calculateYpodeigma4RowTotal(
   return total === 0 ? null : total;
 }
 
+export function calculateYpodeigma4Percentage(
+  moiraValue: number | null,
+  totalValue: number | null,
+) {
+  if (moiraValue === null || totalValue === null || totalValue === 0) {
+    return null;
+  }
+
+  return Math.round((moiraValue / totalValue) * 100 * 100) / 100;
+}
+
 export function parseYpodeigma4Amount(rawValue: string) {
   if (rawValue.trim() === '') {
     return null;

@@ -1,50 +1,84 @@
 import { getYpodeigma4AmountKey } from './helpers';
 import type { Ypodeigma4Config, Ypodeigma4Moira, Ypodeigma4Row } from './types';
 
-const MOCK_MOIRES: Ypodeigma4Moira[] = [
-  { id: '337m', label: '337Μ', displayOrder: 1 },
-  { id: '338m', label: '338Μ', displayOrder: 2 },
-  { id: '339m', label: '339Μ', displayOrder: 3 },
-];
+type FetchYpodeigma4ConfigParams = {
+  monadaId: string;
+  monadaLabel: string;
+  etos: number;
+  etosStatus: 'editable' | 'view' | null;
+  etosSource: 'existing' | 'new' | null;
+};
 
-function createEmptyValues(moires: Ypodeigma4Moira[]) {
+const MOCK_MOIRES_BY_MONADA: Record<string, Ypodeigma4Moira[]> = {
+  '110pm': [
+    { id: '337m-110', label: '337Μ', displayOrder: 1 },
+    { id: '338m-110', label: '338Μ', displayOrder: 2 },
+  ],
+  '116pm': [
+    { id: '335m-116', label: '335Μ', displayOrder: 1 },
+    { id: '336m-116', label: '336Μ', displayOrder: 2 },
+  ],
+  '117pm': [{ id: '339m-117', label: '339Μ', displayOrder: 1 }],
+};
+
+function createEmptyValues(moires: Ypodeigma4Moira[]): Record<string, number | null> {
   return Object.fromEntries(
     moires.map((moira) => [getYpodeigma4AmountKey(moira.id), null]),
-  ) satisfies Record<string, number | null>;
+  );
 }
 
-function createMockRows(moires: Ypodeigma4Moira[]): Ypodeigma4Row[] {
+function createMockRows(
+  moires: Ypodeigma4Moira[],
+  includeExistingValues: boolean,
+): Ypodeigma4Row[] {
+  const diatetheisesValues = createEmptyValues(moires);
+  const posostoValues = createEmptyValues(moires);
+
+  if (includeExistingValues) {
+    moires.forEach((moira, index) => {
+      diatetheisesValues[getYpodeigma4AmountKey(moira.id)] = 1_200 + index * 180;
+    });
+  }
+
   return [
     {
       id: 'diatetheises-eo',
       label: 'Διατεθείσες ΕΩ',
       metricType: 'diatetheises-eo',
       displayOrder: 1,
-      values: createEmptyValues(moires),
+      values: diatetheisesValues,
     },
     {
       id: 'pososto-diathesis-p2',
       label: 'Ποσοστό διάθεσης Π2 ανά Μοίρα Α/Φ',
       metricType: 'pososto-diathesis-p2',
       displayOrder: 2,
-      values: createEmptyValues(moires),
+      values: posostoValues,
     },
   ];
 }
 
-export function fetchYpodeigma4Config(): Promise<Ypodeigma4Config> {
-  const sortedMoires = [...MOCK_MOIRES].sort((left, right) => left.displayOrder - right.displayOrder);
+export function fetchYpodeigma4Config({
+  monadaId,
+  monadaLabel,
+  etosStatus,
+  etosSource,
+}: FetchYpodeigma4ConfigParams): Promise<Ypodeigma4Config> {
+  const sortedMoires = [...(MOCK_MOIRES_BY_MONADA[monadaId] ?? [])].sort(
+    (left, right) => left.displayOrder - right.displayOrder,
+  );
 
   return Promise.resolve({
     wing: {
-      id: '110pm',
-      name: '110ΠΜ',
+      id: monadaId,
+      name: monadaLabel,
     },
     unit: {
-      id: '110msb',
-      name: '110ΜΣΒ',
+      id: `${monadaId}-msb`,
+      name: `${monadaLabel.replace('ΠΜ', '')}ΜΣΒ`,
     },
+    status: etosStatus ?? 'view',
     moires: sortedMoires,
-    rows: createMockRows(sortedMoires),
+    rows: createMockRows(sortedMoires, etosSource !== 'new'),
   });
 }

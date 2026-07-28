@@ -1,8 +1,9 @@
-import type { ProsopikoClassificationOption, ProsopikoRow } from './types';
+import type { ProsopikoClassificationOption, ProsopikoConfig, ProsopikoRow } from './types';
 
 const MOCK_ROWS: ProsopikoRow[] = [
   {
     id: 'prosopiko-1',
+    displayOrder: 1,
     vathmos: 'ΣΓΟΣ',
     eid: 'ΙΠΤ',
     eponymo: 'Παπαδόπουλος',
@@ -14,12 +15,13 @@ const MOCK_ROWS: ProsopikoRow[] = [
     tmimaGrafeioAllo: 'Γραφείο Εκπαίδευσης',
     apo: '2026-06-01',
     eos: '2026-06-10',
-    taxinomisiKodikaPinaka1Kai62: '',
+    taxinomisiKodikaPinaka1Kai62: '1.1',
     movementType: 'Τοποθέτηση',
     imeres: 10,
   },
   {
     id: 'prosopiko-2',
+    displayOrder: 2,
     vathmos: 'ΣΓΟΣ',
     eid: 'ΙΠΤ',
     eponymo: 'Παπαδόπουλος',
@@ -31,12 +33,13 @@ const MOCK_ROWS: ProsopikoRow[] = [
     tmimaGrafeioAllo: 'Γραφείο Εκπαίδευσης',
     apo: '2026-06-04',
     eos: '2026-06-06',
-    taxinomisiKodikaPinaka1Kai62: '',
+    taxinomisiKodikaPinaka1Kai62: '1.1.1',
     movementType: 'Απόσπαση',
     imeres: 3,
   },
   {
     id: 'prosopiko-3',
+    displayOrder: 3,
     vathmos: 'ΕΠΓΟΣ',
     eid: 'ΤΕΧ',
     eponymo: 'Κωνσταντίνου',
@@ -48,12 +51,13 @@ const MOCK_ROWS: ProsopikoRow[] = [
     tmimaGrafeioAllo: 'Τμήμα Υποστήριξης',
     apo: '2026-06-07',
     eos: '2026-06-09',
-    taxinomisiKodikaPinaka1Kai62: '',
+    taxinomisiKodikaPinaka1Kai62: '1.2',
     movementType: 'Τοποθέτηση',
     imeres: 3,
   },
   {
     id: 'prosopiko-4',
+    displayOrder: 4,
     vathmos: 'ΑΝΘΣΓΟΣ',
     eid: 'ΔΙΑΧ',
     eponymo: 'Νικολάου',
@@ -65,7 +69,7 @@ const MOCK_ROWS: ProsopikoRow[] = [
     tmimaGrafeioAllo: 'Γραφείο Κίνησης',
     apo: '2026-06-10',
     eos: '2026-06-12',
-    taxinomisiKodikaPinaka1Kai62: '',
+    taxinomisiKodikaPinaka1Kai62: '2.2',
     movementType: 'Τοποθέτηση',
     imeres: 3,
   },
@@ -90,8 +94,56 @@ const MOCK_CLASSIFICATION_OPTIONS: ProsopikoClassificationOption[] = [
   { code: '2.2', description: 'Κατηγορία 6.2.2' },
 ];
 
-export function fetchProsopikoRows(): Promise<ProsopikoRow[]> {
-  return Promise.resolve(MOCK_ROWS.map((row) => ({ ...row })));
+type FetchProsopikoConfigParams = {
+  monadaId: string;
+  monadaLabel: string;
+  etos: number;
+  etosStatus: 'editable' | 'view' | null;
+  etosSource: 'existing' | 'new' | null;
+};
+
+function createEmptyProsopikoRow(etos: number): ProsopikoRow {
+  return {
+    id: `prosopiko-new-${etos}-1`,
+    displayOrder: 1,
+    vathmos: '',
+    eid: '',
+    eponymo: '',
+    onoma: '',
+    ama: '',
+    epiteleioMonadaYpiresia: '',
+    kladosMoiraAllo: '',
+    dieythynsiEpistasiaAllo: '',
+    tmimaGrafeioAllo: '',
+    apo: '',
+    eos: '',
+    taxinomisiKodikaPinaka1Kai62: '',
+    movementType: null,
+    imeres: null,
+  };
+}
+
+export async function fetchProsopikoConfig({
+  monadaId,
+  monadaLabel,
+  etos,
+  etosStatus,
+  etosSource,
+}: FetchProsopikoConfigParams): Promise<ProsopikoConfig> {
+  await new Promise((resolve) => window.setTimeout(resolve, 300));
+
+  return {
+    unit: {
+      id: monadaId,
+      name: monadaLabel,
+    },
+    etos,
+    status: etosSource === 'new' ? 'editable' : (etosStatus ?? 'view'),
+    rows:
+      etosSource === 'new'
+        ? [createEmptyProsopikoRow(etos)]
+        : MOCK_ROWS.map((row) => ({ ...row })),
+  };
 }
 
 export function fetchProsopikoClassificationOptions(): Promise<ProsopikoClassificationOption[]> {

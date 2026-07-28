@@ -43,3 +43,8 @@ export type Ypodeigma3SaveResponse = {
   submissionId: string;
   status: 'saved';
 };
+
+export type Ypodeigma3FormActions = {
+  saveDraft: () => Promise<void>;
+  submitFinal: () => Promise<void>;
+};

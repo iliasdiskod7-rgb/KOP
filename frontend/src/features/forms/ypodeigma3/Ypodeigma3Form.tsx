@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import type { AppUserRole } from '../../../types/auth';
+import { upsertYpodeigma2Submission } from '../ypodeigma2/submissionStorage';
+import type { Ypodeigma2SubmissionStatus } from '../ypodeigma2/types';
 import { buildYpodeigma3SavePayload } from './buildYpodeigma3Payload';
 import { fetchYpodeigma3Config } from './mockYpodeigma3Api';
 import {
+  calculateP1,
   formatAmount,
   getDisplayValue,
   getMoiraAmountKey,
@@ -15,11 +19,13 @@ import {
 import type {
   Ypodeigma3Config,
   Ypodeigma3EntryScope,
+  Ypodeigma3FormActions,
   Ypodeigma3Row,
 } from './types';
 import { saveYpodeigma3Submission } from './ypodeigma3Api';
 
 type Ypodeigma3FormProps = {
+  role: AppUserRole;
   selectedMonadaId: string | null;
   selectedMonadaLabel: string | null;
   selectedMoiraId: string | null;
@@ -27,6 +33,8 @@ type Ypodeigma3FormProps = {
   selectedEtos: number | null;
   selectedEtosStatus: 'editable' | 'view' | null;
   selectedEtosSource: 'existing' | 'new' | null;
+  onRegisterActions?: (actions: Ypodeigma3FormActions | null) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 type NumericChangeEvent = ChangeEvent<HTMLInputElement>;
@@ -47,7 +55,11 @@ const MOIRA_COLUMN_LABELS: Record<(typeof MOIRA_COLUMN_TYPES)[number], string> =
   opfs: 'ΩΕ(f/s)',
 };
 
-function getCellClassName(isEditable: boolean, isParentRow: boolean) {
+function getCellClassName(isEditable: boolean, isParentRow: boolean, hasError = false) {
+  if (hasError) {
+    return 'border-2 border-rose-500 bg-rose-50 px-1 py-1 text-right';
+  }
+
   if (isParentRow) {
     return 'border border-slate-300 bg-sky-100 px-1 py-1 text-right font-semibold text-sky-900';
   }
@@ -84,6 +96,52 @@ function isPercentageValueKey(valueKey: string) {
   return valueKey.endsWith('::p1');
 }
 
+function getSiblingValueKey(valueKey: string, columnType: 'sd' | 'sa' | 'p1') {
+  const separatorIndex = valueKey.lastIndexOf('::');
+
+  return `${valueKey.slice(0, separatorIndex)}::${columnType}`;
+}
+
+function applyCalculatedP1(values: Record<string, number | null>, p1Key: string) {
+  const nextValues = { ...values };
+  const sdKey = getSiblingValueKey(p1Key, 'sd');
+  const saKey = getSiblingValueKey(p1Key, 'sa');
+
+  nextValues[p1Key] = calculateP1(nextValues[sdKey] ?? null, nextValues[saKey] ?? null);
+
+  return nextValues;
+}
+
+function applyCalculatedP1ToRows(config: Ypodeigma3Config) {
+  return config.rows.map((row) => {
+    let nextValues = { ...row.values };
+
+    if (row.entryScope === 'moira-af-ep') {
+      config.moires.forEach((moira) => {
+        nextValues = applyCalculatedP1(nextValues, getMoiraAmountKey(moira.id, 'p1'));
+      });
+    } else {
+      nextValues = applyCalculatedP1(nextValues, getOutsideAmountKey('p1'));
+    }
+
+    return {
+      ...row,
+      values: nextValues,
+    };
+  });
+}
+
+function getCalculatedP1DisplayValue(
+  row: Ypodeigma3Row,
+  p1Key: string,
+  rows: Ypodeigma3Row[],
+) {
+  const sdValue = getDisplayValue(row, getSiblingValueKey(p1Key, 'sd'), rows);
+  const saValue = getDisplayValue(row, getSiblingValueKey(p1Key, 'sa'), rows);
+
+  return calculateP1(sdValue, saValue);
+}
+
 function getInputStateKey(rowId: string, valueKey: string) {
   return `${rowId}::${valueKey}`;
 }
@@ -93,6 +151,8 @@ type TableSectionProps = {
   title: string;
   rows: Ypodeigma3Row[];
   entryScope: Ypodeigma3EntryScope;
+  isFormEditable: boolean;
+  validationErrors: Record<string, string>;
   selectedMoiraId: string | null;
   selectedMoiraLabel: string | null;
   onValueChange: (rowId: string, valueKey: string) => (event: NumericChangeEvent) => void;
@@ -106,6 +166,8 @@ function TableSection({
   title,
   rows,
   entryScope,
+  isFormEditable,
+  validationErrors,
   selectedMoiraId,
   selectedMoiraLabel,
   onValueChange,
@@ -278,14 +340,18 @@ function TableSection({
                 {entryScope === 'moira-af-ep'
                   ? MOIRA_COLUMN_TYPES.map((columnType) => {
                       const valueKey = getMoiraAmountKey(selectedMoiraId ?? 'selected-moira', columnType);
-                      const displayValue = getDisplayValue(row, valueKey, rows);
-                      const isEditable = !isParentRow;
+                      const displayValue =
+                        columnType === 'p1'
+                          ? getCalculatedP1DisplayValue(row, valueKey, rows)
+                          : getDisplayValue(row, valueKey, rows);
+                      const isEditable = isFormEditable && !isParentRow && columnType !== 'p1';
+                      const validationError = validationErrors[getInputStateKey(row.id, valueKey)];
 
                       return (
                         <td
                           key={`${tableCode}-${row.id}-${columnType}`}
-                          className={getCellClassName(isEditable, isParentRow)}
-                          title={displayValue === null ? '' : String(displayValue)}
+                          className={getCellClassName(isEditable, isParentRow, Boolean(validationError))}
+                          title={validationError ?? (displayValue === null ? '' : String(displayValue))}
                         >
                           {isEditable ? (
                             <input
@@ -295,25 +361,37 @@ function TableSection({
                               onChange={onValueChange(row.id, valueKey)}
                               onFocus={onInputFocus(row.id, valueKey, displayValue)}
                               onBlur={onInputBlur(row.id, valueKey)}
-                              title={displayValue === null ? '' : String(displayValue)}
-                              className="w-full min-w-0 rounded border border-slate-200 bg-white px-0.5 py-0.5 text-right font-mono text-[9px] leading-tight outline-none transition focus:border-cyan-300 focus:ring-1 focus:ring-cyan-100"
+                              title={validationError ?? (displayValue === null ? '' : String(displayValue))}
+                              className={`w-full min-w-0 rounded bg-white px-0.5 py-0.5 text-right font-mono text-[11px] font-semibold leading-tight outline-none transition ${
+                                validationError
+                                  ? 'border-2 border-rose-500 text-rose-800 focus:border-rose-600 focus:ring-1 focus:ring-rose-200'
+                                  : 'border border-slate-200 focus:border-cyan-300 focus:ring-1 focus:ring-cyan-100'
+                              }`}
                             />
                           ) : (
-                            <span>{formatAmount(displayValue)}</span>
+                            <span className="font-mono text-[11px] font-semibold">
+                              {columnType === 'p1' && displayValue !== null
+                                ? `${formatAmount(displayValue)}%`
+                                : formatAmount(displayValue)}
+                            </span>
                           )}
                         </td>
                       );
                     })
                   : OUTSIDE_COLUMN_TYPES.map((columnType) => {
                       const valueKey = getOutsideAmountKey(columnType);
-                      const displayValue = getDisplayValue(row, valueKey, rows);
-                      const isEditable = !isParentRow;
+                      const displayValue =
+                        columnType === 'p1'
+                          ? getCalculatedP1DisplayValue(row, valueKey, rows)
+                          : getDisplayValue(row, valueKey, rows);
+                      const isEditable = isFormEditable && !isParentRow && columnType !== 'p1';
+                      const validationError = validationErrors[getInputStateKey(row.id, valueKey)];
 
                       return (
                         <td
                           key={`${tableCode}-${row.id}-${columnType}`}
-                          className={getCellClassName(isEditable, isParentRow)}
-                          title={displayValue === null ? '' : String(displayValue)}
+                          className={getCellClassName(isEditable, isParentRow, Boolean(validationError))}
+                          title={validationError ?? (displayValue === null ? '' : String(displayValue))}
                         >
                           {isEditable ? (
                             <input
@@ -323,11 +401,19 @@ function TableSection({
                               onChange={onValueChange(row.id, valueKey)}
                               onFocus={onInputFocus(row.id, valueKey, displayValue)}
                               onBlur={onInputBlur(row.id, valueKey)}
-                              title={displayValue === null ? '' : String(displayValue)}
-                              className="w-full min-w-0 rounded border border-slate-200 bg-white px-0.5 py-0.5 text-right font-mono text-[9px] leading-tight outline-none transition focus:border-cyan-300 focus:ring-1 focus:ring-cyan-100"
+                              title={validationError ?? (displayValue === null ? '' : String(displayValue))}
+                              className={`w-full min-w-0 rounded bg-white px-0.5 py-0.5 text-right font-mono text-[11px] font-semibold leading-tight outline-none transition ${
+                                validationError
+                                  ? 'border-2 border-rose-500 text-rose-800 focus:border-rose-600 focus:ring-1 focus:ring-rose-200'
+                                  : 'border border-slate-200 focus:border-cyan-300 focus:ring-1 focus:ring-cyan-100'
+                              }`}
                             />
                           ) : (
-                            <span>{formatAmount(displayValue)}</span>
+                            <span className="font-mono text-[11px] font-semibold">
+                              {columnType === 'p1' && displayValue !== null
+                                ? `${formatAmount(displayValue)}%`
+                                : formatAmount(displayValue)}
+                            </span>
                           )}
                         </td>
                       );
@@ -342,6 +428,7 @@ function TableSection({
 }
 
 export default function Ypodeigma3Form({
+  role,
   selectedMonadaId,
   selectedMonadaLabel,
   selectedMoiraId,
@@ -349,21 +436,21 @@ export default function Ypodeigma3Form({
   selectedEtos,
   selectedEtosStatus,
   selectedEtosSource,
+  onRegisterActions,
+  onDirtyChange,
 }: Ypodeigma3FormProps) {
   const [config, setConfig] = useState<Ypodeigma3Config | null>(null);
   const [rows, setRows] = useState<Ypodeigma3Row[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [inputDrafts, setInputDrafts] = useState<Record<string, string>>({});
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setConfig(null);
     setRows([]);
     setInputDrafts({});
-    setSaveMessage(null);
-    setSaveError(null);
+    setValidationErrors({});
+    onDirtyChange?.(false);
 
     if (!selectedMonadaId || !selectedMonadaLabel || !selectedMoiraId || !selectedMoiraLabel || !selectedEtos) {
       setIsLoading(false);
@@ -387,7 +474,7 @@ export default function Ypodeigma3Form({
       }
 
       setConfig(nextConfig);
-      setRows(nextConfig.rows);
+      setRows(applyCalculatedP1ToRows(nextConfig));
       setIsLoading(false);
     });
 
@@ -402,16 +489,12 @@ export default function Ypodeigma3Form({
     selectedMonadaLabel,
     selectedMoiraId,
     selectedMoiraLabel,
+    onDirtyChange,
   ]);
 
   const sortedRows = useMemo(
     () => [...rows].sort((left, right) => left.displayOrder - right.displayOrder),
     [rows],
-  );
-
-  const sortedMoires = useMemo(
-    () => [...(config?.moires ?? [])].sort((left, right) => left.displayOrder - right.displayOrder),
-    [config?.moires],
   );
 
   const moiraRows = useMemo(
@@ -423,9 +506,71 @@ export default function Ypodeigma3Form({
     () => sortedRows.filter((row) => row.entryScope === 'outside-moires'),
     [sortedRows],
   );
+  const isEditable = selectedEtosStatus === 'editable' && role !== 'admin';
+
+  useEffect(() => {
+    if (!onRegisterActions) {
+      return;
+    }
+
+    if (!config || role === 'admin') {
+      onRegisterActions(null);
+      return;
+    }
+
+    const saveSubmission = async (status: Ypodeigma2SubmissionStatus) => {
+      if (Object.keys(validationErrors).length > 0) {
+        throw new Error('Το Υπόδειγμα 3 περιέχει μη έγκυρες τιμές.');
+      }
+
+      const payload = buildYpodeigma3SavePayload(config, sortedRows, config.moires);
+      await saveYpodeigma3Submission(payload);
+
+      upsertYpodeigma2Submission({
+        id: `ypodeigma3-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
+        createdAt: new Date().toISOString(),
+        ypodeigmaLabel: 'Υπόδειγμα 3',
+        pterygaLabel: selectedMonadaLabel ?? selectedMonadaId,
+        etos: selectedEtos,
+        sectionId: 'Υπόδειγμα 3',
+        sectionTitle: selectedMoiraLabel ?? selectedMoiraId ?? 'Χωρίς μοίρα',
+        totalAmount: 0,
+        moiraCount: config.moires.length,
+        rowCount: payload.rows.length,
+        status,
+      });
+
+      onDirtyChange?.(false);
+    };
+
+    onRegisterActions({
+      saveDraft: () => saveSubmission('pending-submission'),
+      submitFinal: () => saveSubmission('submitted'),
+    });
+
+    return () => {
+      onRegisterActions(null);
+    };
+  }, [
+    config,
+    onDirtyChange,
+    onRegisterActions,
+    role,
+    selectedEtos,
+    selectedMoiraId,
+    selectedMoiraLabel,
+    selectedMonadaId,
+    selectedMonadaLabel,
+    sortedRows,
+    validationErrors,
+  ]);
 
   const handleValueChange =
     (rowId: string, valueKey: string) => (event: NumericChangeEvent) => {
+      if (!isEditable) {
+        return;
+      }
+
       const rawValue = isPercentageValueKey(valueKey)
         ? sanitizePercentageInput(event.target.value)
         : sanitizeNumericInput(event.target.value);
@@ -440,19 +585,35 @@ export default function Ypodeigma3Form({
       setRows((currentRows) =>
         currentRows.map((row) =>
           row.id === rowId
-            ? {
-                ...row,
-                values: {
+            ? (() => {
+                const nextValues = {
                   ...row.values,
                   [valueKey]: parsedValue,
-                },
-              }
+                };
+                const p1Key = getSiblingValueKey(valueKey, 'p1');
+
+                return {
+                  ...row,
+                  values:
+                    valueKey.endsWith('::sd') || valueKey.endsWith('::sa')
+                      ? applyCalculatedP1(nextValues, p1Key)
+                      : nextValues,
+                };
+              })()
             : row,
         ),
       );
 
-      setSaveMessage(null);
-      setSaveError(null);
+      setValidationErrors((currentErrors) => {
+        if (!currentErrors[inputStateKey]) {
+          return currentErrors;
+        }
+
+        const nextErrors = { ...currentErrors };
+        delete nextErrors[inputStateKey];
+        return nextErrors;
+      });
+      onDirtyChange?.(true);
     };
 
   const handleInputFocus = (rowId: string, valueKey: string, displayValue: number | null) => () => {
@@ -473,6 +634,43 @@ export default function Ypodeigma3Form({
       delete nextDrafts[inputStateKey];
       return nextDrafts;
     });
+
+    if (!valueKey.endsWith('::sd') && !valueKey.endsWith('::sa')) {
+      return;
+    }
+
+    const currentRow = rows.find((row) => row.id === rowId);
+
+    if (!currentRow) {
+      return;
+    }
+
+    const sd = currentRow.values[getSiblingValueKey(valueKey, 'sd')] ?? null;
+    const sa = currentRow.values[getSiblingValueKey(valueKey, 'sa')] ?? null;
+    const sdStateKey = getInputStateKey(rowId, getSiblingValueKey(valueKey, 'sd'));
+    const saStateKey = getInputStateKey(rowId, getSiblingValueKey(valueKey, 'sa'));
+
+    if (sa !== null && (sd === null || sa > sd)) {
+      const invalidStateKey = valueKey.endsWith('::sd') ? sdStateKey : saStateKey;
+      const validStateKey = valueKey.endsWith('::sd') ? saStateKey : sdStateKey;
+      const message = valueKey.endsWith('::sd')
+        ? 'Το ΣΔ δεν μπορεί να είναι μικρότερο από το ΣΑ.'
+        : 'Το ΣΑ δεν μπορεί να είναι μεγαλύτερο από τη συνολική δύναμη ΣΔ.';
+
+      setValidationErrors((currentErrors) => {
+        const nextErrors = { ...currentErrors, [invalidStateKey]: message };
+        delete nextErrors[validStateKey];
+        return nextErrors;
+      });
+      return;
+    }
+
+    setValidationErrors((currentErrors) => {
+      const nextErrors = { ...currentErrors };
+      delete nextErrors[sdStateKey];
+      delete nextErrors[saStateKey];
+      return nextErrors;
+    });
   };
 
   const getInputDisplayValue = (rowId: string, valueKey: string, displayValue: number | null) => {
@@ -488,27 +686,6 @@ export default function Ypodeigma3Form({
     }
 
     return isPercentageValueKey(valueKey) ? `${displayValue}%` : String(displayValue);
-  };
-
-  const handleSave = async () => {
-    if (!config) {
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      setSaveMessage(null);
-      setSaveError(null);
-
-      const payload = buildYpodeigma3SavePayload(config, sortedRows, sortedMoires);
-      await saveYpodeigma3Submission(payload);
-
-      setSaveMessage('Το Υπόδειγμα 3 αποθηκεύτηκε προσωρινά με επιτυχία.');
-    } catch {
-      setSaveError('Η αποθήκευση απέτυχε. Δοκιμάστε ξανά.');
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   if (!selectedEtos || !selectedMonadaId || !selectedMoiraId) {
@@ -545,15 +722,19 @@ export default function Ypodeigma3Form({
           </p>
         </div>
 
-        {saveMessage ? (
-          <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700">
-            {saveMessage}
-          </div>
-        ) : null}
-
-        {saveError ? (
-          <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700">
-            {saveError}
+        {role !== 'admin' ? (
+          <div
+            className={`mb-3 rounded-xl border px-4 py-2.5 text-sm ${
+              isEditable
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-amber-200 bg-amber-50 text-amber-700'
+            }`}
+          >
+            {selectedEtosSource === 'new'
+              ? `Το νέο έτος ${selectedEtos} είναι κενό και editable για νέα καταχώριση.`
+              : isEditable
+                ? `Το έτος ${selectedEtos} έχει mock δεδομένα από backend και είναι editable.`
+                : `Το έτος ${selectedEtos} έχει mock δεδομένα από backend και είναι μόνο για προβολή.`}
           </div>
         ) : null}
 
@@ -563,6 +744,8 @@ export default function Ypodeigma3Form({
             title="Μοίρες Α/Φ-ΕΠ"
             rows={moiraRows}
             entryScope="moira-af-ep"
+            isFormEditable={isEditable}
+            validationErrors={validationErrors}
             selectedMoiraId={selectedMoiraId}
             selectedMoiraLabel={selectedMoiraLabel}
             onValueChange={handleValueChange}
@@ -576,6 +759,8 @@ export default function Ypodeigma3Form({
             title="Μοίρες-Τμήματα-Επιστασίες Εκτός Μοιρών Α/Φ-Ε/Π"
             rows={outsideRows}
             entryScope="outside-moires"
+            isFormEditable={isEditable}
+            validationErrors={validationErrors}
             selectedMoiraId={selectedMoiraId}
             selectedMoiraLabel={selectedMoiraLabel}
             onValueChange={handleValueChange}
@@ -585,16 +770,6 @@ export default function Ypodeigma3Form({
           />
         </div>
 
-        <div className="mt-4 flex justify-end">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-sm"
-          >
-            {isSaving ? 'Αποθήκευση...' : 'Αποθήκευση'}
-          </button>
-        </div>
       </div>
     </section>
   );

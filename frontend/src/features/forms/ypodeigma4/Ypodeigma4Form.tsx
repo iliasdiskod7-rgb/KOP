@@ -1,28 +1,40 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import type { AppUserRole } from '../../../types/auth';
+import { upsertYpodeigma2Submission } from '../ypodeigma2/submissionStorage';
+import type { Ypodeigma2SubmissionStatus } from '../ypodeigma2/types';
 import {
+  calculateYpodeigma4Percentage,
   calculateYpodeigma4RowTotal,
   formatYpodeigma4Amount,
   getYpodeigma4AmountKey,
   parseYpodeigma4Amount,
 } from './helpers';
 import { fetchYpodeigma4Config } from './mockYpodeigma4Api';
-import type { Ypodeigma4Config, Ypodeigma4Row } from './types';
+import type {
+  Ypodeigma4Config,
+  Ypodeigma4FormActions,
+  Ypodeigma4Row,
+  Ypodeigma4SaveRequest,
+} from './types';
+import { saveYpodeigma4Submission } from './ypodeigma4Api';
 
 type NumericChangeEvent = ChangeEvent<HTMLInputElement>;
 
+type Ypodeigma4FormProps = {
+  role: AppUserRole;
+  selectedMonadaId: string | null;
+  selectedMonadaLabel: string | null;
+  selectedMoiraId: string | null;
+  selectedMoiraLabel: string | null;
+  selectedEtos: number | null;
+  selectedEtosStatus: 'editable' | 'view' | null;
+  selectedEtosSource: 'existing' | 'new' | null;
+  onRegisterActions?: (actions: Ypodeigma4FormActions | null) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
+};
+
 function sanitizeNumericInput(rawValue: string) {
   return rawValue.replace(/[^0-9.,-]/g, '');
-}
-
-function sanitizePercentageInput(rawValue: string) {
-  const sanitizedValue = rawValue.replace(/[^0-9.,%-]/g, '');
-  const percentIndex = sanitizedValue.indexOf('%');
-
-  if (percentIndex === -1) {
-    return sanitizedValue;
-  }
-
-  return `${sanitizedValue.slice(0, percentIndex).replace(/%/g, '')}%`;
 }
 
 function isPercentageRow(metricType: Ypodeigma4Row['metricType']) {
@@ -43,33 +55,96 @@ function formatTotalDisplay(metricType: Ypodeigma4Row['metricType'], value: numb
   return isPercentageRow(metricType) ? `${formattedValue}%` : formattedValue;
 }
 
-export default function Ypodeigma4Form() {
+function applyCalculatedPercentages(
+  rows: Ypodeigma4Row[],
+  moires: Ypodeigma4Config['moires'],
+) {
+  const eoRow = rows.find((row) => row.metricType === 'diatetheises-eo');
+  const percentageRow = rows.find((row) => row.metricType === 'pososto-diathesis-p2');
+
+  if (!eoRow || !percentageRow) {
+    return rows;
+  }
+
+  const totalEo = calculateYpodeigma4RowTotal(eoRow, moires);
+  const percentageValues = Object.fromEntries(
+    moires.map((moira) => {
+      const valueKey = getYpodeigma4AmountKey(moira.id);
+      const moiraEo = eoRow.values[valueKey] ?? null;
+
+      return [valueKey, calculateYpodeigma4Percentage(moiraEo, totalEo)];
+    }),
+  );
+
+  return rows.map((row) =>
+    row.id === percentageRow.id
+      ? {
+          ...row,
+          values: percentageValues,
+        }
+      : row,
+  );
+}
+
+export default function Ypodeigma4Form({
+  role,
+  selectedMonadaId,
+  selectedMonadaLabel,
+  selectedMoiraId,
+  selectedMoiraLabel,
+  selectedEtos,
+  selectedEtosStatus,
+  selectedEtosSource,
+  onRegisterActions,
+  onDirtyChange,
+}: Ypodeigma4FormProps) {
   const [config, setConfig] = useState<Ypodeigma4Config | null>(null);
   const [rows, setRows] = useState<Ypodeigma4Row[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [inputDrafts, setInputDrafts] = useState<Record<string, string>>({});
-  const [validationMessage, setValidationMessage] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true;
+    setConfig(null);
+    setRows([]);
+    setInputDrafts({});
+    onDirtyChange?.(false);
 
-    fetchYpodeigma4Config().then((nextConfig) => {
+    if (!selectedMonadaId || !selectedMonadaLabel || !selectedMoiraId || !selectedEtos) {
+      setIsLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    setIsLoading(true);
+
+    fetchYpodeigma4Config({
+      monadaId: selectedMonadaId,
+      monadaLabel: selectedMonadaLabel,
+      etos: selectedEtos,
+      etosStatus: selectedEtosStatus,
+      etosSource: selectedEtosSource,
+    }).then((nextConfig) => {
       if (!mounted) {
         return;
       }
 
       setConfig(nextConfig);
-      setRows(nextConfig.rows);
+      setRows(applyCalculatedPercentages(nextConfig.rows, nextConfig.moires));
       setIsLoading(false);
     });
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [
+    onDirtyChange,
+    selectedEtos,
+    selectedEtosSource,
+    selectedEtosStatus,
+    selectedMoiraId,
+    selectedMonadaId,
+    selectedMonadaLabel,
+  ]);
 
   const sortedRows = useMemo(
     () => [...rows].sort((left, right) => left.displayOrder - right.displayOrder),
@@ -82,44 +157,28 @@ export default function Ypodeigma4Form() {
   );
 
   const moiraColumnCount = sortedMoires.length;
+  const isEditable = config?.status === 'editable' && role !== 'admin';
 
   const handleValueChange =
     (rowId: string, moiraId: string) => (event: NumericChangeEvent) => {
       const valueKey = getYpodeigma4AmountKey(moiraId);
       const currentRow = rows.find((row) => row.id === rowId);
 
-      if (!currentRow) {
+      if (!currentRow || !isEditable) {
         return;
       }
 
-      const rawValue = isPercentageRow(currentRow.metricType)
-        ? sanitizePercentageInput(event.target.value)
-        : sanitizeNumericInput(event.target.value);
-      const parsedValue = parseYpodeigma4Amount(rawValue.replace('%', ''));
+      const rawValue = sanitizeNumericInput(event.target.value);
+      const parsedValue = parseYpodeigma4Amount(rawValue);
       const inputStateKey = getInputStateKey(rowId, moiraId);
-
-      if (isPercentageRow(currentRow.metricType)) {
-        const nextRowTotal = sortedMoires.reduce((sum, moira) => {
-          const currentValueKey = getYpodeigma4AmountKey(moira.id);
-          const nextValue =
-            moira.id === moiraId ? parsedValue : (currentRow.values[currentValueKey] ?? null);
-
-          return sum + (nextValue ?? 0);
-        }, 0);
-
-        if (nextRowTotal > 100) {
-          setValidationMessage('Το συνολικό άθροισμα της γραμμής Ποσοστό διάθεσης Π2 δεν μπορεί να ξεπερνά το 100%.');
-          return;
-        }
-      }
 
       setInputDrafts((currentDrafts) => ({
         ...currentDrafts,
         [inputStateKey]: rawValue,
       }));
 
-      setRows((currentRows) =>
-        currentRows.map((row) =>
+      setRows((currentRows) => {
+        const nextRows = currentRows.map((row) =>
           row.id === rowId
             ? {
                 ...row,
@@ -129,12 +188,13 @@ export default function Ypodeigma4Form() {
                 },
               }
             : row,
-        ),
-      );
+        );
 
-      setValidationMessage('');
-      setSaveMessage(null);
-      setSaveError(null);
+        return applyCalculatedPercentages(nextRows, sortedMoires);
+      });
+
+      onDirtyChange?.(true);
+
     };
 
   const handleInputFocus =
@@ -178,38 +238,80 @@ export default function Ypodeigma4Form() {
     return isPercentageRow(metricType) ? `${value}%` : String(value);
   };
 
-  const handleSave = async () => {
-    if (!config) {
+  useEffect(() => {
+    if (!onRegisterActions) {
       return;
     }
 
-    const payload = {
-      unitId: config.unit.id,
-      rows: sortedRows.map((row) => ({
-        rowId: row.id,
-        metricType: row.metricType,
-        values: row.values,
-      })),
+    if (!config || !selectedEtos || role === 'admin') {
+      onRegisterActions(null);
+      return;
+    }
+
+    const saveSubmission = async (status: Ypodeigma2SubmissionStatus) => {
+      const payload: Ypodeigma4SaveRequest = {
+        wingId: config.wing.id,
+        etos: selectedEtos,
+        rows: sortedRows.map((row) => ({
+          rowId: row.id,
+          metricType: row.metricType,
+          values: row.values,
+        })),
+      };
+
+      await saveYpodeigma4Submission(payload);
+
+      const totalAmount = calculateYpodeigma4RowTotal(sortedRows[0], sortedMoires) ?? 0;
+
+      upsertYpodeigma2Submission({
+        id: `ypodeigma4-${selectedEtos}-${selectedMonadaId ?? 'unknown'}`,
+        createdAt: new Date().toISOString(),
+        ypodeigmaLabel: 'Υπόδειγμα 4',
+        pterygaLabel: selectedMonadaLabel ?? selectedMonadaId,
+        etos: selectedEtos,
+        sectionId: 'Υπόδειγμα 4',
+        sectionTitle: `Διάθεση ΕΩ - ${selectedMoiraLabel ?? selectedMoiraId ?? 'Μοίρες Α/Φ'}`,
+        totalAmount,
+        moiraCount: config.moires.length,
+        rowCount: sortedRows.length,
+        status,
+      });
+
+      onDirtyChange?.(false);
     };
 
-    try {
-      setIsSaving(true);
-      setSaveMessage(null);
-      setSaveError(null);
+    onRegisterActions({
+      saveDraft: () => saveSubmission('pending-submission'),
+      submitFinal: () => saveSubmission('submitted'),
+    });
 
-      await new Promise((resolve) => window.setTimeout(resolve, 600));
+    return () => {
+      onRegisterActions(null);
+    };
+  }, [
+    config,
+    onDirtyChange,
+    onRegisterActions,
+    role,
+    selectedEtos,
+    selectedMoiraId,
+    selectedMoiraLabel,
+    selectedMonadaId,
+    selectedMonadaLabel,
+    sortedMoires,
+    sortedRows,
+  ]);
 
-      // Εδώ αργότερα θα γίνει POST προς backend.
-      // eslint-disable-next-line no-console
-      console.log('Ypodeigma4 save payload', payload);
-
-      setSaveMessage('Το Υπόδειγμα 4 αποθηκεύτηκε με επιτυχία.');
-    } catch {
-      setSaveError('Η αποθήκευση απέτυχε. Δοκιμάστε ξανά.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  if (!selectedEtos || !selectedMonadaId || !selectedMoiraId) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-2xl font-bold text-slate-800">ΥΠΟΔΕΙΓΜΑ 4</h1>
+        <p className="mt-4 text-sm text-slate-600">
+          Επιλέξτε έτος, μονάδα και μοίρα για να φορτωθεί το Υπόδειγμα 4.
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading || !config) {
     return (
@@ -227,21 +329,19 @@ export default function Ypodeigma4Form() {
           <p className="mt-1 text-sm font-medium text-slate-600">Μονάδα: {config.wing.name}</p>
         </div>
 
-        {validationMessage ? (
-          <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700">
-            {validationMessage}
-          </div>
-        ) : null}
-
-        {saveMessage ? (
-          <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700">
-            {saveMessage}
-          </div>
-        ) : null}
-
-        {saveError ? (
-          <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700">
-            {saveError}
+        {role !== 'admin' ? (
+          <div
+            className={`mb-3 rounded-xl border px-4 py-2.5 text-sm ${
+              isEditable
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-amber-200 bg-amber-50 text-amber-700'
+            }`}
+          >
+            {selectedEtosSource === 'new'
+              ? `Το νέο έτος ${selectedEtos} είναι κενό και editable για νέα καταχώριση.`
+              : isEditable
+                ? `Το έτος ${selectedEtos} έχει mock δεδομένα από backend και είναι editable.`
+                : `Το έτος ${selectedEtos} έχει mock δεδομένα από backend και είναι μόνο για προβολή.`}
           </div>
         ) : null}
 
@@ -306,15 +406,21 @@ export default function Ypodeigma4Form() {
                           key={`${row.id}-${moira.id}`}
                           className="border border-slate-300 bg-white px-1.5 py-1.5"
                         >
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={getInputDisplayValue(row.id, moira.id, row.metricType, value)}
-                            onChange={handleValueChange(row.id, moira.id)}
-                            onFocus={handleInputFocus(row.id, moira.id, value)}
-                            onBlur={handleInputBlur(row.id, moira.id)}
-                            className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-right text-[11px] outline-none transition focus:border-cyan-300 focus:ring-1 focus:ring-cyan-100"
-                          />
+                          {isEditable && !isPercentageRow(row.metricType) ? (
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={getInputDisplayValue(row.id, moira.id, row.metricType, value)}
+                              onChange={handleValueChange(row.id, moira.id)}
+                              onFocus={handleInputFocus(row.id, moira.id, value)}
+                              onBlur={handleInputBlur(row.id, moira.id)}
+                              className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-right text-[11px] outline-none transition focus:border-cyan-300 focus:ring-1 focus:ring-cyan-100"
+                            />
+                          ) : (
+                            <div className="rounded bg-sky-50 px-2 py-1 text-right font-semibold text-sky-900">
+                              {formatTotalDisplay(row.metricType, value ?? null)}
+                            </div>
+                          )}
                         </td>
                       );
                     })}
@@ -328,16 +434,6 @@ export default function Ypodeigma4Form() {
           </table>
         </div>
 
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-emerald-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-emerald-300 disabled:hover:translate-y-0 disabled:hover:scale-100"
-          >
-            {isSaving ? 'Αποθήκευση...' : 'Αποθήκευση'}
-          </button>
-        </div>
       </div>
     </section>
   );
