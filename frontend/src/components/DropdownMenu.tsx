@@ -19,7 +19,7 @@ export default function DropdownMenu({ onSelect }: DropdownMenuProps) {
   return (
     <div className="w-64 overflow-hidden rounded-2xl border border-sky-200 bg-white text-slate-800 shadow-2xl ring-1 ring-sky-100">
       <div className="border-b border-sky-100 bg-sky-50 px-4 py-3 text-xs font-bold uppercase tracking-[0.16em] text-sky-700">
-        Υποδείγματα
+        Υποδειγματα
       </div>
 
       <div className="max-h-80 overflow-y-auto py-1">

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/KOP.Api/KOP.Api.csproj" />
+    <Project Path="backend/KOP.Application/KOP.Application.csproj" />
+    <Project Path="backend/KOP.Domain/KOP.Domain.csproj" />
+    <Project Path="backend/KOP.Infrastructure/KOP.Infrastructure.csproj" />
+  </Folder>
+</Solution>

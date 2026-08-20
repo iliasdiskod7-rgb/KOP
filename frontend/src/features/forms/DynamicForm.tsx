@@ -1,35 +1,34 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAppInit } from '../../api/appApi';
+import { canUseAuthenticatedApi, getApiErrorMessage } from '../../api/httpClient';
+import { submissionSession } from '../../api/submissionSession';
+import { getYpodeigmaEntries } from '../../api/ypodeigmataApi';
 import type { AppUserRole } from '../../types/auth';
 import ProsopikoForm from './prosopiko/ProsopikoForm';
-import type { ProsopikoFormActions } from './prosopiko/types';
 import YpodeigmaActionMessage from './shared/YpodeigmaActionMessage';
 import YpodeigmaActionsPanel from './shared/YpodeigmaActionsPanel';
 import YpodeigmaControlsPanel from './shared/YpodeigmaControlsPanel';
 import {
   checkNewEtosAvailability,
-  fetchYpodeigmaControlsOptions,
   startNewEtos,
 } from './shared/mockYpodeigmaControlsApi';
 import type {
   ActionMessage,
+  FormActions,
   YpodeigmaControlsOptions,
   YpodeigmaControlsValue,
 } from './shared/types';
 import {
   useUnsavedStartedEtosGuard,
 } from './shared/useUnsavedStartedEtosGuard';
+import { fetchYpodeigmaControlsOptions } from './shared/ypodeigmaControlsApi';
 import Ypodeigma1Form from './ypodeigma1/Ypodeigma1Form';
-import type { Ypodeigma1FormActions } from './ypodeigma1/types';
 import Ypodeigma2Form from './ypodeigma2/Ypodeigma2Form';
 import Ypodeigma3Form from './ypodeigma3/Ypodeigma3Form';
-import type { Ypodeigma3FormActions } from './ypodeigma3/types';
 import Ypodeigma4Form from './ypodeigma4/Ypodeigma4Form';
-import type { Ypodeigma4FormActions } from './ypodeigma4/types';
 import Ypodeigma5Form from './ypodeigma5/Ypodeigma5Form';
-import type { Ypodeigma5FormActions } from './ypodeigma5/types';
 import Ypodeigma6Form from './ypodeigma6/Ypodeigma6Form';
-import type { Ypodeigma6FormActions } from './ypodeigma6/types';
 
 interface DynamicFormProps {
   id: number;
@@ -236,50 +235,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
   const [hasRequestedRetrieve, setHasRequestedRetrieve] = useState(false);
   const [shouldResumeStartNewYear, setShouldResumeStartNewYear] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
-
-  const [ypodeigma1SaveDraftAction, setYpodeigma1SaveDraftAction] = useState<(() => void) | null>(
-    null,
-  );
-  const [ypodeigma1SubmitFinalAction, setYpodeigma1SubmitFinalAction] = useState<(() => void) | null>(
-    null,
-  );
-  const [ypodeigma2SaveDraftAction, setYpodeigma2SaveDraftAction] = useState<(() => void) | null>(
-    null,
-  );
-  const [ypodeigma2SubmitFinalAction, setYpodeigma2SubmitFinalAction] = useState<
-    (() => void) | null
-  >(null);
-  const [ypodeigma2ReturnAction, setYpodeigma2ReturnAction] = useState<(() => void) | null>(null);
-  const [ypodeigma3SaveDraftAction, setYpodeigma3SaveDraftAction] = useState<(() => void) | null>(
-    null,
-  );
-  const [ypodeigma3SubmitFinalAction, setYpodeigma3SubmitFinalAction] = useState<
-    (() => void) | null
-  >(null);
-  const [ypodeigma4SaveDraftAction, setYpodeigma4SaveDraftAction] = useState<(() => void) | null>(
-    null,
-  );
-  const [ypodeigma4SubmitFinalAction, setYpodeigma4SubmitFinalAction] = useState<
-    (() => void) | null
-  >(null);
-  const [ypodeigma5SaveDraftAction, setYpodeigma5SaveDraftAction] = useState<(() => void) | null>(
-    null,
-  );
-  const [ypodeigma5SubmitFinalAction, setYpodeigma5SubmitFinalAction] = useState<
-    (() => void) | null
-  >(null);
-  const [ypodeigma6SaveDraftAction, setYpodeigma6SaveDraftAction] = useState<(() => void) | null>(
-    null,
-  );
-  const [ypodeigma6SubmitFinalAction, setYpodeigma6SubmitFinalAction] = useState<
-    (() => void) | null
-  >(null);
-  const [prosopikoSaveDraftAction, setProsopikoSaveDraftAction] = useState<(() => void) | null>(
-    null,
-  );
-  const [prosopikoSubmitFinalAction, setProsopikoSubmitFinalAction] = useState<
-    (() => void) | null
-  >(null);
+  const [formActions, setFormActions] = useState<FormActions | null>(null);
 
   useEffect(() => {
     setControlsValue(EMPTY_CONTROLS_VALUE);
@@ -289,63 +245,11 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
     setHasRequestedRetrieve(false);
     setShouldResumeStartNewYear(false);
     setIsFormDirty(false);
-    setYpodeigma1SaveDraftAction(null);
-    setYpodeigma1SubmitFinalAction(null);
-    setYpodeigma2SaveDraftAction(null);
-    setYpodeigma2SubmitFinalAction(null);
-    setYpodeigma2ReturnAction(null);
-    setYpodeigma3SaveDraftAction(null);
-    setYpodeigma3SubmitFinalAction(null);
-    setYpodeigma4SaveDraftAction(null);
-    setYpodeigma4SubmitFinalAction(null);
-    setYpodeigma5SaveDraftAction(null);
-    setYpodeigma5SubmitFinalAction(null);
-    setYpodeigma6SaveDraftAction(null);
-    setYpodeigma6SubmitFinalAction(null);
-    setProsopikoSaveDraftAction(null);
-    setProsopikoSubmitFinalAction(null);
+    setFormActions(null);
   }, [id]);
 
-  const handleRegisterYpodeigma1Actions = useCallback((actions: Ypodeigma1FormActions | null) => {
-    setYpodeigma1SaveDraftAction(() => actions?.saveDraft ?? null);
-    setYpodeigma1SubmitFinalAction(() => actions?.submitFinal ?? null);
-  }, []);
-
-  const handleRegisterYpodeigma2SaveDraftAction = useCallback((action: (() => void) | null) => {
-    setYpodeigma2SaveDraftAction(() => action);
-  }, []);
-
-  const handleRegisterYpodeigma2SubmitFinalAction = useCallback((action: (() => void) | null) => {
-    setYpodeigma2SubmitFinalAction(() => action);
-  }, []);
-
-  const handleRegisterYpodeigma2ReturnAction = useCallback((action: (() => void) | null) => {
-    setYpodeigma2ReturnAction(() => action);
-  }, []);
-
-  const handleRegisterYpodeigma3Actions = useCallback((actions: Ypodeigma3FormActions | null) => {
-    setYpodeigma3SaveDraftAction(() => actions?.saveDraft ?? null);
-    setYpodeigma3SubmitFinalAction(() => actions?.submitFinal ?? null);
-  }, []);
-
-  const handleRegisterYpodeigma4Actions = useCallback((actions: Ypodeigma4FormActions | null) => {
-    setYpodeigma4SaveDraftAction(() => actions?.saveDraft ?? null);
-    setYpodeigma4SubmitFinalAction(() => actions?.submitFinal ?? null);
-  }, []);
-
-  const handleRegisterYpodeigma5Actions = useCallback((actions: Ypodeigma5FormActions | null) => {
-    setYpodeigma5SaveDraftAction(() => actions?.saveDraft ?? null);
-    setYpodeigma5SubmitFinalAction(() => actions?.submitFinal ?? null);
-  }, []);
-
-  const handleRegisterYpodeigma6Actions = useCallback((actions: Ypodeigma6FormActions | null) => {
-    setYpodeigma6SaveDraftAction(() => actions?.saveDraft ?? null);
-    setYpodeigma6SubmitFinalAction(() => actions?.submitFinal ?? null);
-  }, []);
-
-  const handleRegisterProsopikoActions = useCallback((actions: ProsopikoFormActions | null) => {
-    setProsopikoSaveDraftAction(() => actions?.saveDraft ?? null);
-    setProsopikoSubmitFinalAction(() => actions?.submitFinal ?? null);
+  const handleRegisterFormActions = useCallback((actions: FormActions | null) => {
+    setFormActions(actions);
   }, []);
 
   const handleControlsChange = useCallback(
@@ -377,7 +281,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
       setIsControlsLoading(true);
 
       try {
-        const nextOptions = await fetchYpodeigmaControlsOptions();
+        const nextOptions = await fetchYpodeigmaControlsOptions(id);
 
         if (!isMounted) {
           return;
@@ -406,6 +310,14 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
                 : currentValue.etosStatus,
           };
         });
+      } catch (error) {
+        if (isMounted) {
+          setActionMessage({
+            type: 'error',
+            title: 'Αποτυχία φόρτωσης αρχικών δεδομένων.',
+            description: getApiErrorMessage(error),
+          });
+        }
       } finally {
         if (isMounted) {
           setIsControlsLoading(false);
@@ -418,7 +330,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [id]);
 
   const hasDraftSelection = Boolean(
     controlsValue.etos && controlsValue.monadaId && controlsValue.moiraId,
@@ -453,6 +365,37 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
   });
   const shouldWarnForUnsavedChanges = Boolean(pendingStartedEtos) || isFormDirty;
 
+  const loadBackendEntriesForSelection = useCallback(
+    async (value: YpodeigmaControlsValue) => {
+      if (!canUseAuthenticatedApi() || value.etosSource === 'new' || !value.etos) {
+        return;
+      }
+
+      const appInit = await getAppInit();
+      const allowedYpodeigma = appInit.allowedYpodeigmata.find(
+        (ypodeigma) => ypodeigma.ypodeigmaId === id,
+      );
+      const responsibleOrgUnitIds =
+        allowedYpodeigma?.responsibleOrgUnits.map((orgUnit) => orgUnit.orgUnitId) ?? [];
+
+      if (responsibleOrgUnitIds.length === 0) {
+        throw new Error('Δεν υπάρχουν διαθέσιμες υπεύθυνες οργανωτικές μονάδες.');
+      }
+
+      const submissions = await getYpodeigmaEntries(id, value.etos, responsibleOrgUnitIds);
+
+      submissions.forEach((submission) => {
+        submissionSession.rememberExistingSubmission({
+          ypodeigmaId: submission.ypodeigmaId,
+          etosAnaforas: submission.etosAnaforas,
+          responsibleOrgUnitId: submission.responsibleOrgUnitId,
+          submissionId: submission.submissionId,
+        });
+      });
+    },
+    [id],
+  );
+
   const handleFormDirtyChange = useCallback((isDirty: boolean) => {
     setIsFormDirty(isDirty);
   }, []);
@@ -478,7 +421,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
 
   const executeAction = useCallback(
     async (
-      action: (() => void) | null,
+      action: (() => void | Promise<void>) | null,
       errorTitle = 'Η ενέργεια δεν είναι διαθέσιμη.',
     ) => {
       if (!action) {
@@ -501,10 +444,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         setActionMessage({
           type: 'error',
           title: 'Η ενέργεια απέτυχε.',
-          description:
-            error instanceof Error
-              ? error.message
-              : 'Προέκυψε σφάλμα κατά την αποθήκευση. Προσπαθήστε ξανά.',
+          description: getApiErrorMessage(error),
         });
         return false;
       } finally {
@@ -514,12 +454,23 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
     [],
   );
 
-  const completePendingUnsavedAction = useCallback(() => {
+  const completePendingUnsavedAction = useCallback(async () => {
     if (!pendingUnsavedAction) {
       return;
     }
 
     if (pendingUnsavedAction.type === 'retrieve') {
+      try {
+        await loadBackendEntriesForSelection(pendingUnsavedAction.nextValue);
+      } catch (error) {
+        setActionMessage({
+          type: 'error',
+          title: 'Η ανάκτηση απέτυχε.',
+          description: getApiErrorMessage(error),
+        });
+        return;
+      }
+
       setIsFormDirty(false);
       setHasRequestedRetrieve(true);
       handleControlsChange(pendingUnsavedAction.nextValue);
@@ -559,19 +510,19 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
 
     const nextId = nextTargetTab.replace('ypodeigma', '');
     navigate(`/dashboard/ypodeigma/${nextId}`);
-  }, [controlsOptions, handleControlsChange, id, navigate, pendingUnsavedAction]);
+  }, [controlsOptions, handleControlsChange, id, loadBackendEntriesForSelection, navigate, pendingUnsavedAction]);
 
   const handleContinueWithoutSaving = useCallback(() => {
     setIsFormDirty(false);
     clearPendingUnsavedState();
-    completePendingUnsavedAction();
+    void completePendingUnsavedAction();
   }, [clearPendingUnsavedState, completePendingUnsavedAction]);
 
   const handleReturnToEditing = useCallback(() => {
     setPendingUnsavedAction(null);
   }, [setPendingUnsavedAction]);
 
-  const handleRetrieve = useCallback(() => {
+  const handleRetrieve = useCallback(async () => {
     if (!controlsValue.etos) {
       setActionMessage({
         type: 'error',
@@ -602,6 +553,21 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
       return;
     }
 
+    setIsControlsLoading(true);
+
+    try {
+      await loadBackendEntriesForSelection(nextAppliedValue);
+    } catch (error) {
+      setActionMessage({
+        type: 'error',
+        title: 'Η ανάκτηση απέτυχε.',
+        description: getApiErrorMessage(error),
+      });
+      return;
+    } finally {
+      setIsControlsLoading(false);
+    }
+
     handleControlsChange(nextAppliedValue);
     setIsFormDirty(false);
     setHasRequestedRetrieve(true);
@@ -622,6 +588,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
     controlsValue,
     handleControlsChange,
     id,
+    loadBackendEntriesForSelection,
     shouldWarnForUnsavedChanges,
   ]);
 
@@ -712,7 +679,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
       setActionMessage({
         type: 'error',
         title: 'Αποτυχία έναρξης νέου έτους.',
-        description: 'Προέκυψε σφάλμα κατά τη δημιουργία του νέου έτους. Προσπαθήστε ξανά.',
+        description: getApiErrorMessage(error),
       });
     } finally {
       setIsStartingNewYear(false);
@@ -738,337 +705,115 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
   const handleTemporarySave = useCallback(async () => {
     const context = buildSelectionContext(id, controlsOptions, appliedControlsValue);
 
-    if (id === 1) {
-      const isSuccess = await executeAction(ypodeigma1SaveDraftAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('temporary-saved');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-          `Η εγγραφή για ${context} αποθηκεύτηκε προσωρινά στην κατηγορία ΠΡΟΣ ΥΠΟΒΟΛΗ.`,
+    if (!formActions?.saveDraft) {
+      setActionMessage(
+        buildUnavailableActionMessage(
+          'Η προσωρινή αποθήκευση δεν είναι ακόμη διαθέσιμη.',
+          getYpodeigmaLabel(id),
         ),
       );
       return;
     }
 
-    if (id === 2) {
-      const isSuccess = await executeAction(ypodeigma2SaveDraftAction);
+    const isSuccess = await executeAction(formActions.saveDraft);
 
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('temporary-saved');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-          buildSubmissionDescription('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
-        ),
-      );
+    if (!isSuccess) {
       return;
     }
 
-    if (id === 3) {
-      const isSuccess = await executeAction(ypodeigma3SaveDraftAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('temporary-saved');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-          buildSubmissionDescription('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
-        ),
-      );
-      return;
-    }
-
-    if (id === 4) {
-      const isSuccess = await executeAction(ypodeigma4SaveDraftAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('temporary-saved');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-          buildSubmissionDescription('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
-        ),
-      );
-      return;
-    }
-
-    if (id === 5) {
-      const isSuccess = await executeAction(ypodeigma5SaveDraftAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('temporary-saved');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-          buildSubmissionDescription('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
-        ),
-      );
-      return;
-    }
-
-    if (id === 6) {
-      const isSuccess = await executeAction(ypodeigma6SaveDraftAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('temporary-saved');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-          buildSubmissionDescription('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
-        ),
-      );
-      return;
-    }
-
-    if (id === 22) {
-      const isSuccess = await executeAction(prosopikoSaveDraftAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('temporary-saved');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
-          buildSubmissionDescription('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
-        ),
-      );
-      return;
-    }
-
-    setActionMessage(
-      buildUnavailableActionMessage(
-        'Η προσωρινή αποθήκευση δεν είναι ακόμη διαθέσιμη.',
-        getYpodeigmaLabel(id),
+    persistPendingStartedEtos('temporary-saved');
+    setPendingUnsavedAction(null);
+    navigateToMySubmissions(
+      buildFlashMessage(
+        'Η προσωρινή αποθήκευση ολοκληρώθηκε.',
+        id === 1
+          ? `Η εγγραφή για ${context} αποθηκεύτηκε προσωρινά στην κατηγορία ΠΡΟΣ ΥΠΟΒΟΛΗ.`
+          : buildSubmissionDescription('ΠΡΟΣ ΥΠΟΒΟΛΗ', context),
       ),
     );
   }, [
     appliedControlsValue,
     controlsOptions,
     executeAction,
+    formActions,
     id,
     navigateToMySubmissions,
     persistPendingStartedEtos,
-    ypodeigma1SaveDraftAction,
-    ypodeigma2SaveDraftAction,
-    ypodeigma3SaveDraftAction,
-    ypodeigma4SaveDraftAction,
-    ypodeigma5SaveDraftAction,
-    ypodeigma6SaveDraftAction,
-    prosopikoSaveDraftAction,
+    setPendingUnsavedAction,
   ]);
 
   const handleFinalSubmit = useCallback(async () => {
     const context = buildSelectionContext(id, controlsOptions, appliedControlsValue);
 
-    if (id === 1) {
-      const isSuccess = await executeAction(ypodeigma1SubmitFinalAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('submitted');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η οριστική υποβολή ολοκληρώθηκε.',
-          `Η εγγραφή για ${context} μεταφέρθηκε στην κατηγορία ΥΠΟΒΛΗΘΕΙΣΕΣ.`,
+    if (!formActions?.submitFinal) {
+      setActionMessage(
+        buildUnavailableActionMessage(
+          'Η οριστική υποβολή δεν είναι ακόμη διαθέσιμη.',
+          getYpodeigmaLabel(id),
         ),
       );
       return;
     }
 
-    if (id === 2) {
-      const isSuccess = await executeAction(ypodeigma2SubmitFinalAction);
+    const isSuccess = await executeAction(formActions.submitFinal);
 
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('submitted');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η οριστική υποβολή ολοκληρώθηκε.',
-          buildSubmissionDescription('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
-        ),
-      );
+    if (!isSuccess) {
       return;
     }
 
-    if (id === 3) {
-      const isSuccess = await executeAction(ypodeigma3SubmitFinalAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('submitted');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η οριστική υποβολή ολοκληρώθηκε.',
-          buildSubmissionDescription('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
-        ),
-      );
-      return;
-    }
-
-    if (id === 4) {
-      const isSuccess = await executeAction(ypodeigma4SubmitFinalAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('submitted');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η οριστική υποβολή ολοκληρώθηκε.',
-          buildSubmissionDescription('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
-        ),
-      );
-      return;
-    }
-
-    if (id === 5) {
-      const isSuccess = await executeAction(ypodeigma5SubmitFinalAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('submitted');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η οριστική υποβολή ολοκληρώθηκε.',
-          buildSubmissionDescription('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
-        ),
-      );
-      return;
-    }
-
-    if (id === 6) {
-      const isSuccess = await executeAction(ypodeigma6SubmitFinalAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('submitted');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η οριστική υποβολή ολοκληρώθηκε.',
-          buildSubmissionDescription('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
-        ),
-      );
-      return;
-    }
-
-    if (id === 22) {
-      const isSuccess = await executeAction(prosopikoSubmitFinalAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      persistPendingStartedEtos('submitted');
-      setPendingUnsavedAction(null);
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η οριστική υποβολή ολοκληρώθηκε.',
-          buildSubmissionDescription('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
-        ),
-      );
-      return;
-    }
-
-    setActionMessage(
-      buildUnavailableActionMessage(
-        'Η οριστική υποβολή δεν είναι ακόμη διαθέσιμη.',
-        getYpodeigmaLabel(id),
+    persistPendingStartedEtos('submitted');
+    setPendingUnsavedAction(null);
+    navigateToMySubmissions(
+      buildFlashMessage(
+        'Η οριστική υποβολή ολοκληρώθηκε.',
+        id === 1
+          ? `Η εγγραφή για ${context} μεταφέρθηκε στην κατηγορία ΥΠΟΒΛΗΘΕΙΣΕΣ.`
+          : buildSubmissionDescription('ΥΠΟΒΛΗΘΕΙΣΕΣ', context),
       ),
     );
   }, [
     appliedControlsValue,
     controlsOptions,
     executeAction,
+    formActions,
     id,
     navigateToMySubmissions,
     persistPendingStartedEtos,
-    ypodeigma1SubmitFinalAction,
-    ypodeigma2SubmitFinalAction,
-    ypodeigma3SubmitFinalAction,
-    ypodeigma4SubmitFinalAction,
-    ypodeigma5SubmitFinalAction,
-    ypodeigma6SubmitFinalAction,
-    prosopikoSubmitFinalAction,
+    setPendingUnsavedAction,
   ]);
 
   const handleReturnForCorrection = useCallback(async () => {
     const context = buildSelectionContext(id, controlsOptions, appliedControlsValue);
 
-    if (id === 2) {
-      const isSuccess = await executeAction(ypodeigma2ReturnAction);
-
-      if (!isSuccess) {
-        return;
-      }
-
-      navigateToMySubmissions(
-        buildFlashMessage(
-          'Η επιστροφή για διόρθωση ολοκληρώθηκε.',
-          buildSubmissionDescription('ΕΠΙΣΤΡΟΦΗ ΓΙΑ ΔΙΟΡΘΩΣΗ', context),
+    if (!formActions?.returnForCorrection) {
+      setActionMessage(
+        buildUnavailableActionMessage(
+          'Η επιστροφή για διόρθωση δεν είναι ακόμη διαθέσιμη.',
+          getYpodeigmaLabel(id),
         ),
       );
       return;
     }
 
-    setActionMessage(
-      buildUnavailableActionMessage(
-        'Η επιστροφή για διόρθωση δεν είναι ακόμη διαθέσιμη.',
-        getYpodeigmaLabel(id),
+    const isSuccess = await executeAction(formActions.returnForCorrection);
+
+    if (!isSuccess) {
+      return;
+    }
+
+    navigateToMySubmissions(
+      buildFlashMessage(
+        'Η επιστροφή για διόρθωση ολοκληρώθηκε.',
+        buildSubmissionDescription('ΕΠΙΣΤΡΟΦΗ ΓΙΑ ΔΙΟΡΘΩΣΗ', context),
       ),
     );
   }, [
     appliedControlsValue,
     controlsOptions,
     executeAction,
+    formActions,
     id,
     navigateToMySubmissions,
-    ypodeigma2ReturnAction,
   ]);
 
   const shouldShowSharedActions = true;
@@ -1137,7 +882,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         selectedEtos={appliedControlsValue.etos}
         selectedEtosStatus={appliedControlsValue.etosStatus}
         selectedEtosSource={appliedControlsValue.etosSource}
-        onRegisterActions={handleRegisterYpodeigma1Actions}
+        onRegisterActions={handleRegisterFormActions}
         onDirtyChange={handleFormDirtyChange}
       />
     );
@@ -1151,9 +896,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         selectedEtos={appliedControlsValue.etos}
         selectedEtosStatus={appliedControlsValue.etosStatus}
         selectedEtosSource={appliedControlsValue.etosSource}
-        onRegisterReturnForCorrection={handleRegisterYpodeigma2ReturnAction}
-        onRegisterSaveDraft={handleRegisterYpodeigma2SaveDraftAction}
-        onRegisterSubmitFinal={handleRegisterYpodeigma2SubmitFinalAction}
+        onRegisterActions={handleRegisterFormActions}
         onDirtyChange={handleFormDirtyChange}
       />
     );
@@ -1168,7 +911,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         selectedEtos={appliedControlsValue.etos}
         selectedEtosStatus={appliedControlsValue.etosStatus}
         selectedEtosSource={appliedControlsValue.etosSource}
-        onRegisterActions={handleRegisterYpodeigma3Actions}
+        onRegisterActions={handleRegisterFormActions}
         onDirtyChange={handleFormDirtyChange}
       />
     );
@@ -1183,7 +926,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         selectedEtos={appliedControlsValue.etos}
         selectedEtosStatus={appliedControlsValue.etosStatus}
         selectedEtosSource={appliedControlsValue.etosSource}
-        onRegisterActions={handleRegisterYpodeigma4Actions}
+        onRegisterActions={handleRegisterFormActions}
         onDirtyChange={handleFormDirtyChange}
       />
     );
@@ -1196,7 +939,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         selectedEtos={appliedControlsValue.etos}
         selectedEtosStatus={appliedControlsValue.etosStatus}
         selectedEtosSource={appliedControlsValue.etosSource}
-        onRegisterActions={handleRegisterYpodeigma5Actions}
+        onRegisterActions={handleRegisterFormActions}
         onDirtyChange={handleFormDirtyChange}
       />
     );
@@ -1209,7 +952,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         selectedEtos={appliedControlsValue.etos}
         selectedEtosStatus={appliedControlsValue.etosStatus}
         selectedEtosSource={appliedControlsValue.etosSource}
-        onRegisterActions={handleRegisterYpodeigma6Actions}
+        onRegisterActions={handleRegisterFormActions}
         onDirtyChange={handleFormDirtyChange}
       />
     );
@@ -1222,7 +965,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
         selectedEtos={appliedControlsValue.etos}
         selectedEtosStatus={appliedControlsValue.etosStatus}
         selectedEtosSource={appliedControlsValue.etosSource}
-        onRegisterActions={handleRegisterProsopikoActions}
+        onRegisterActions={handleRegisterFormActions}
         onDirtyChange={handleFormDirtyChange}
       />
     );
@@ -1316,17 +1059,13 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
               : 'pointer-events-none max-h-0 -translate-y-1 scale-y-95 opacity-0'
           }`}
         >
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+          <div className="rounded-2xl border border-sky-100 bg-gradient-to-r from-white via-sky-50/70 to-white px-4 py-2.5 shadow-[0_8px_24px_rgba(14,116,144,0.08)]">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <div className="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700">
-                  Ενεργή προβολή
-                </div>
-
                 {summaryItems.map((item) => (
                   <div
                     key={item}
-                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
+                    className="rounded-full border border-sky-100 bg-white px-3 py-1 text-xs font-semibold text-sky-800 shadow-sm"
                   >
                     {item}
                   </div>
@@ -1379,7 +1118,7 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
                 <button
                   type="button"
                   onClick={() => setIsControlsCollapsed(false)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                  className="inline-flex items-center gap-2 rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-semibold text-sky-800 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md"
                 >
                   Αλλαγή επιλογών
                   <ChevronIcon isOpen={false} />

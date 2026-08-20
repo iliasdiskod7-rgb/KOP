@@ -34,6 +34,12 @@ export type ActionMessage = {
   description?: string;
 };
 
+export type FormActions = {
+  saveDraft: () => void | Promise<void>;
+  submitFinal: () => void | Promise<void>;
+  returnForCorrection?: () => void | Promise<void>;
+};
+
 export type NewEtosAvailabilityResult = {
   isAvailable: boolean;
   message: string;

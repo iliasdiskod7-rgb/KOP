@@ -5,24 +5,40 @@ import KOP from '../assets/KOP.png';
 import type { AppUserRole } from '../types/auth';
 
 interface LoginProps {
-  onLoginSuccess: (username: string, role: AppUserRole) => void;
+  onLogin: (username: string, password: string, mockRole: AppUserRole) => Promise<void>;
+  usesBackend: boolean;
 }
 
-export default function Login({ onLoginSuccess }: LoginProps) {
+export default function Login({ onLogin, usesBackend }: LoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<AppUserRole>('user');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (username.trim() !== '') {
-      onLoginSuccess(username, role);
-      navigate('/dashboard');
+    if (!username.trim() || isSubmitting) {
+      return;
     }
 
-    console.log('Αποστολή στο backend:', { username, password, role });
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      await onLogin(username.trim(), password, role);
+      navigate('/dashboard/ypologismos', { replace: true });
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Η σύνδεση απέτυχε. Προσπαθήστε ξανά.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -60,23 +76,35 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             />
           </div>
 
-          <div className="flex flex-col space-y-1.5">
-            <label className="text-sm font-semibold tracking-wide text-slate-500">Ρόλος</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as AppUserRole)}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 transition-all duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          {!usesBackend ? (
+            <div className="flex flex-col space-y-1.5">
+              <label className="text-sm font-semibold tracking-wide text-slate-500">Ρόλος</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as AppUserRole)}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 transition-all duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              >
+                <option value="user">Χρήστης</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          ) : null}
+
+          {errorMessage ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
             >
-              <option value="user">Χρήστης</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
+              {errorMessage}
+            </div>
+          ) : null}
 
           <button
             type="submit"
-            className="w-full rounded-lg bg-blue-600 py-3 font-bold uppercase tracking-wider text-white shadow-md transition-all duration-150 hover:bg-blue-700 hover:shadow-lg active:scale-[0.99]"
+            disabled={isSubmitting}
+            className="w-full rounded-lg bg-blue-600 py-3 font-bold uppercase tracking-wider text-white shadow-md transition-all duration-150 hover:bg-blue-700 hover:shadow-lg active:scale-[0.99] disabled:cursor-wait disabled:bg-slate-400 disabled:shadow-none"
           >
-            Σύνδεση
+            {isSubmitting ? 'Σύνδεση...' : 'Σύνδεση'}
           </button>
         </form>
       </div>

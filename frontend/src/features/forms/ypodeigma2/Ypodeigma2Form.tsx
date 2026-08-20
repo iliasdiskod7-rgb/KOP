@@ -1,9 +1,15 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import type { AppUserRole } from '../../../types/auth';
+import type { FormActions } from '../shared/types';
 import { calculateHierarchicalGrandTotal, getAmountKey, isLeafRow } from './helpers';
 import { fetchYpodeigma2Section } from './mockYpodeigma2Api';
 import { upsertYpodeigma2Submission } from './submissionStorage';
-import type { Ypodeigma2AnalysisLevel, Ypodeigma2Row, Ypodeigma2SectionConfig } from './types';
+import type {
+  Ypodeigma2AnalysisLevel,
+  Ypodeigma2Row,
+  Ypodeigma2SectionConfig,
+  Ypodeigma2SubmissionStatus,
+} from './types';
 import Ypodeigma2Section1ATable from './Ypodeigma2Section1ATable';
 import Ypodeigma2Section1BTable from './Ypodeigma2Section1BTable';
 
@@ -15,9 +21,7 @@ type Ypodeigma2FormProps = {
   selectedEtos: number | null;
   selectedEtosStatus: 'editable' | 'view' | null;
   selectedEtosSource: 'existing' | 'new' | null;
-  onRegisterReturnForCorrection?: (action: (() => void) | null) => void;
-  onRegisterSaveDraft?: (action: (() => void) | null) => void;
-  onRegisterSubmitFinal?: (action: (() => void) | null) => void;
+  onRegisterActions?: (actions: FormActions | null) => void;
   onDirtyChange?: (isDirty: boolean) => void;
 };
 
@@ -59,9 +63,7 @@ export default function Ypodeigma2Form({
   selectedEtos,
   selectedEtosStatus,
   selectedEtosSource,
-  onRegisterReturnForCorrection,
-  onRegisterSaveDraft,
-  onRegisterSubmitFinal,
+  onRegisterActions,
   onDirtyChange,
 }: Ypodeigma2FormProps) {
   const [section, setSection] = useState<Ypodeigma2SectionConfig | null>(null);
@@ -123,16 +125,16 @@ export default function Ypodeigma2Form({
   const section1BTotal = section ? calculateHierarchicalGrandTotal(section1BRows, section.moires) : 0;
 
   useEffect(() => {
-    if (!onRegisterReturnForCorrection) {
+    if (!onRegisterActions) {
       return;
     }
 
-    if (role !== 'admin' || !section) {
-      onRegisterReturnForCorrection(null);
+    if (!section) {
+      onRegisterActions(null);
       return;
     }
 
-    onRegisterReturnForCorrection(() => {
+    const saveSubmission = (status: Ypodeigma2SubmissionStatus) => {
       upsertYpodeigma2Submission({
         id: `ypodeigma2-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
         createdAt: new Date().toISOString(),
@@ -144,99 +146,25 @@ export default function Ypodeigma2Form({
         totalAmount: section1ATotal + section1BTotal,
         moiraCount: section.moires.length,
         rowCount: rows.length + section1BRows.length,
-        status: 'returned-for-correction',
+        status,
       });
+    };
+
+    onRegisterActions({
+      saveDraft: () => saveSubmission('pending-submission'),
+      submitFinal: () => saveSubmission('submitted'),
+      ...(role === 'admin'
+        ? {
+            returnForCorrection: () => saveSubmission('returned-for-correction'),
+          }
+        : {}),
     });
 
     return () => {
-      onRegisterReturnForCorrection(null);
+      onRegisterActions(null);
     };
   }, [
-    onRegisterReturnForCorrection,
-    role,
-    rows.length,
-    section,
-    section1ATotal,
-    section1BRows.length,
-    section1BTotal,
-    selectedEtos,
-    selectedMonadaLabel,
-    selectedMoiraId,
-  ]);
-
-  useEffect(() => {
-    if (!onRegisterSaveDraft) {
-      return;
-    }
-
-    if (role === 'admin' || !section) {
-      onRegisterSaveDraft(null);
-      return;
-    }
-
-    onRegisterSaveDraft(() => {
-      upsertYpodeigma2Submission({
-        id: `ypodeigma2-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
-        createdAt: new Date().toISOString(),
-        ypodeigmaLabel: 'Υπόδειγμα 2',
-        pterygaLabel: selectedMonadaLabel,
-        etos: selectedEtos,
-        sectionId: section.sectionId,
-        sectionTitle: section.sectionTitle,
-        totalAmount: section1ATotal + section1BTotal,
-        moiraCount: section.moires.length,
-        rowCount: rows.length + section1BRows.length,
-        status: 'pending-submission',
-      });
-    });
-
-    return () => {
-      onRegisterSaveDraft(null);
-    };
-  }, [
-    onRegisterSaveDraft,
-    role,
-    rows.length,
-    section,
-    section1ATotal,
-    section1BRows.length,
-    section1BTotal,
-    selectedEtos,
-    selectedMonadaLabel,
-    selectedMoiraId,
-  ]);
-
-  useEffect(() => {
-    if (!onRegisterSubmitFinal) {
-      return;
-    }
-
-    if (role === 'admin' || !section) {
-      onRegisterSubmitFinal(null);
-      return;
-    }
-
-    onRegisterSubmitFinal(() => {
-      upsertYpodeigma2Submission({
-        id: `ypodeigma2-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
-        createdAt: new Date().toISOString(),
-        ypodeigmaLabel: 'Υπόδειγμα 2',
-        pterygaLabel: selectedMonadaLabel,
-        etos: selectedEtos,
-        sectionId: section.sectionId,
-        sectionTitle: section.sectionTitle,
-        totalAmount: section1ATotal + section1BTotal,
-        moiraCount: section.moires.length,
-        rowCount: rows.length + section1BRows.length,
-        status: 'submitted',
-      });
-    });
-
-    return () => {
-      onRegisterSubmitFinal(null);
-    };
-  }, [
-    onRegisterSubmitFinal,
+    onRegisterActions,
     role,
     rows.length,
     section,

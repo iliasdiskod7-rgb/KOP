@@ -1,11 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { clearAppInitCache, getAppInit } from './api/appApi';
+import { login } from './api/authApi';
+import {
+  canUseAuthenticatedApi,
+  clearStoredAccessToken,
+  getApiBaseUrl,
+  getApiErrorMessage,
+  getStoredAccessToken,
+  storeAccessToken,
+} from './api/httpClient';
+import type { Role } from './api/types';
 import Footer from './components/Footer';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import type { AuthUser, AppUserRole } from './types/auth';
 
 const STORAGE_KEY = 'kop-auth-user';
+
+function mapBackendRolesToAppRole(roles: Role[]): AppUserRole {
+  return roles.includes('SystemAdmin') || roles.includes('SystemDeveloper') ? 'admin' : 'user';
+}
 
 function readStoredUser(): AuthUser | null {
   const storedValue = localStorage.getItem(STORAGE_KEY);
@@ -42,7 +57,40 @@ function readStoredUser(): AuthUser | null {
 
 export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => readStoredUser());
-  const isLoggedIn = authUser !== null && authUser.username.trim() !== '';
+  const usesBackend = Boolean(getApiBaseUrl());
+  const hasBackendSession = !usesBackend || Boolean(getStoredAccessToken());
+  const isLoggedIn =
+    authUser !== null && authUser.username.trim() !== '' && hasBackendSession;
+
+  useEffect(() => {
+    if (!canUseAuthenticatedApi()) {
+      return;
+    }
+
+    let isMounted = true;
+
+    getAppInit()
+      .then((appInit) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setAuthUser({
+          username: appInit.userInfo.fullName,
+          role: mapBackendRolesToAppRole(appInit.userRoles),
+        });
+      })
+      .catch((error: unknown) => {
+        console.error('Αποτυχία αρχικοποίησης εφαρμογής από το backend.', error);
+        clearStoredAccessToken();
+        clearAppInitCache();
+        setAuthUser(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (authUser?.username.trim()) {
@@ -53,11 +101,32 @@ export default function App() {
     localStorage.removeItem(STORAGE_KEY);
   }, [authUser]);
 
-  const handleLoginSuccess = (username: string, role: AppUserRole) => {
-    setAuthUser({ username, role });
+  const handleLogin = async (username: string, password: string, mockRole: AppUserRole) => {
+    if (!getApiBaseUrl()) {
+      setAuthUser({ username, role: mockRole });
+      return;
+    }
+
+    try {
+      const loginResponse = await login({ username, password });
+      storeAccessToken(loginResponse.accessToken);
+      clearAppInitCache();
+
+      const appInit = await getAppInit();
+      setAuthUser({
+        username: appInit.userInfo.fullName,
+        role: mapBackendRolesToAppRole(appInit.userRoles),
+      });
+    } catch (error: unknown) {
+      clearStoredAccessToken();
+      clearAppInitCache();
+      throw new Error(getApiErrorMessage(error), { cause: error });
+    }
   };
 
   const handleLogout = () => {
+    clearStoredAccessToken();
+    clearAppInitCache();
     setAuthUser(null);
   };
 
@@ -70,7 +139,7 @@ export default function App() {
             isLoggedIn ? (
               <Navigate to="/dashboard/ypologismos" replace />
             ) : (
-              <Login onLoginSuccess={handleLoginSuccess} />
+              <Login onLogin={handleLogin} usesBackend={usesBackend} />
             )
           }
         />

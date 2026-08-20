@@ -1,0 +1,102 @@
+GET /api/health/live
+[Κλήση για έλεγχο ότι η εφαρμογή τρέχει]
+curl -X GET https://localhost:7000/api/health/live
+
+
+GET /api/health/ready
+[Κλήση για έλεγχο ότι η εφαρμογή έχει σύνδεση με τη ΒΔ]
+curl -X GET https://localhost:7000/api/health/ready
+
+
+POST /api/auth/login
+[Κλήση για authentication]
+[Object In Body: LoginRequest(string Username,string Password)]
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"rammos\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"mpoukouvalas\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"grigoriadis\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"georgakopoulos\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"mavros_gea\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"georgiou_ata\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"dimitriou_day\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"garmpilis_110\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"papadopoulos_115\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"kiouloglou_116\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"andreadakis_112\",\"password\":\"123!\"}"
+curl -X POST https://localhost:7000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"dionysiou_113\",\"password\":\"123!\"}"
+
+
+GET /api/app/init
+[Κλήση κατά την εκκίνηση της εφαρμογής]
+[Eπιστρέφουν πληροφορίες σχετικές με το χρήστη, ρόλοι, δικαιώματα σε υποδείγματα]
+(Paradeigma: 110PM) curl "https://localhost:7000/api/app/init" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2IiwianRpIjoiYjFjMjkxNjhjZWYxNDU1NWI3NjI5NjIwNWYxZjY5NTgiLCJpYXQiOjE3ODYwOTYxNDUsIm5iZiI6MTc4NjA5NjE0NSwiZXhwIjoxNzg4Njg4MTQ1LCJpc3MiOiJLT1AiLCJhdWQiOiJLT1AuQXBpIn0.w2cRYg0VATX3qmvL79SdQEUI-FPcdTa1cTs1lKTLYVk"
+(Paradeigma: ATA)   curl "https://localhost:7000/api/app/init" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0IiwianRpIjoiMzdkOTYwZjcwMTUzNGVhZDlmN2M0ZDk4Mzk5OTZkYWUiLCJpYXQiOjE3ODYwOTYzNDUsIm5iZiI6MTc4NjA5NjM0NSwiZXhwIjoxNzg4Njg4MzQ1LCJpc3MiOiJLT1AiLCJhdWQiOiJLT1AuQXBpIn0.WKmZ1Sz0NJb0sPbjvDzaNLYn5nKDE0dfmBk4VX8SrJM"
+
+
+GET /api/ypodeigma/1/katagegrammenaEti?responsibleOrgUnitIds=1&responsibleOrgUnitIds=2&responsibleOrgUnitIds=3
+[Κλήση κατά το άνοιγμα Υποδείγματος από τον χρήστη]
+[Επιστρέφουν τα έτη για τα οποία έχει γίνει καταγραφή δεδομένων]
+(Paradeigma: 110PM) curl "https://localhost:7000/api/ypodeigma/1/katagegrammenaEti?responsibleOrgUnitIds=5" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2IiwianRpIjoiYjFjMjkxNjhjZWYxNDU1NWI3NjI5NjIwNWYxZjY5NTgiLCJpYXQiOjE3ODYwOTYxNDUsIm5iZiI6MTc4NjA5NjE0NSwiZXhwIjoxNzg4Njg4MTQ1LCJpc3MiOiJLT1AiLCJhdWQiOiJLT1AuQXBpIn0.w2cRYg0VATX3qmvL79SdQEUI-FPcdTa1cTs1lKTLYVk"
+(Paradeigma: ATA)   curl "https://localhost:7000/api/ypodeigma/1/katagegrammenaEti?responsibleOrgUnitIds=5" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0IiwianRpIjoiMzdkOTYwZjcwMTUzNGVhZDlmN2M0ZDk4Mzk5OTZkYWUiLCJpYXQiOjE3ODYwOTYzNDUsIm5iZiI6MTc4NjA5NjM0NSwiZXhwIjoxNzg4Njg4MzQ1LCJpc3MiOiJLT1AiLCJhdWQiOiJLT1AuQXBpIn0.WKmZ1Sz0NJb0sPbjvDzaNLYn5nKDE0dfmBk4VX8SrJM"
+
+
+GET /api/ypodeigma/1/subjectOrgUnits?responsibleOrgUnitIds=1&responsibleOrgUnitIds=2&responsibleOrgUnitIds=3
+[Κλήση κατά το πάτημα του κουμπιού Νέο Έτος από το χρήστη]
+[Επιστρέφονται όλες οι Μονάδες και οι Μοίρες που ο χρήστης επιτρέπεται να δει]
+(Paradeigma: 110PM) curl "https://localhost:7000/api/ypodeigma/1/subjectOrgUnits?responsibleOrgUnitIds=5" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2IiwianRpIjoiYjFjMjkxNjhjZWYxNDU1NWI3NjI5NjIwNWYxZjY5NTgiLCJpYXQiOjE3ODYwOTYxNDUsIm5iZiI6MTc4NjA5NjE0NSwiZXhwIjoxNzg4Njg4MTQ1LCJpc3MiOiJLT1AiLCJhdWQiOiJLT1AuQXBpIn0.w2cRYg0VATX3qmvL79SdQEUI-FPcdTa1cTs1lKTLYVk"
+(Paradeigma: ATA)   curl "https://localhost:7000/api/ypodeigma/1/subjectOrgUnits?responsibleOrgUnitIds=5" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0IiwianRpIjoiMzdkOTYwZjcwMTUzNGVhZDlmN2M0ZDk4Mzk5OTZkYWUiLCJpYXQiOjE3ODYwOTYzNDUsIm5iZiI6MTc4NjA5NjM0NSwiZXhwIjoxNzg4Njg4MzQ1LCJpc3MiOiJLT1AiLCJhdWQiOiJLT1AuQXBpIn0.WKmZ1Sz0NJb0sPbjvDzaNLYn5nKDE0dfmBk4VX8SrJM"
+
+
+GET /api/ypodeigma/1/entries?etosAnaforas=2024&responsibleOrgUnitIds=1&responsibleOrgUnitIds=2&responsibleOrgUnitIds=3
+[Κλήση κατά το πάτημα του κουμπιού Ανάκτησης από το χρήστη]
+[Επιστρέφονται όλες οι εγγραφές του υποδείγματος]
+(Paradeigma: 110PM) curl "https://localhost:7000/api/ypodeigma/1/entries?etosAnaforas=2024&responsibleOrgUnitIds=5" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2IiwianRpIjoiYjFjMjkxNjhjZWYxNDU1NWI3NjI5NjIwNWYxZjY5NTgiLCJpYXQiOjE3ODYwOTYxNDUsIm5iZiI6MTc4NjA5NjE0NSwiZXhwIjoxNzg4Njg4MTQ1LCJpc3MiOiJLT1AiLCJhdWQiOiJLT1AuQXBpIn0.w2cRYg0VATX3qmvL79SdQEUI-FPcdTa1cTs1lKTLYVk"
+(Paradeigma: ATA)   curl "https://localhost:7000/api/ypodeigma/1/entries?etosAnaforas=2024&responsibleOrgUnitIds=5" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0IiwianRpIjoiMzdkOTYwZjcwMTUzNGVhZDlmN2M0ZDk4Mzk5OTZkYWUiLCJpYXQiOjE3ODYwOTYzNDUsIm5iZiI6MTc4NjA5NjM0NSwiZXhwIjoxNzg4Njg4MzQ1LCJpc3MiOiJLT1AiLCJhdWQiOiJLT1AuQXBpIn0.WKmZ1Sz0NJb0sPbjvDzaNLYn5nKDE0dfmBk4VX8SrJM"
+
+
+POST /api/ypodeigma/<id>/save
+[Κλήση για αποθήκευση Submission και Entries]
+[Object In Body: 
+    public sealed class YpodeigmaSubmissionRequest
+    {
+        // Null όταν δημιουργείται καινούριο submission.
+        // Έχει τιμή όταν αποθηκεύεται ή υποβάλλεται υπάρχον submission.
+        public int? SubmissionId { get; init; }
+
+        public int YpodeigmaId { get; init; }
+
+        public int EtosAnaforas { get; init; }
+
+        public int ResponsibleOrgUnitId { get; init; }
+
+        public SubmissionSaveAction Action { get; init; }
+
+        public string? SubmissionComment { get; init; }
+
+        public string? SubmissionEventComment { get; init; }
+
+        public List<YpodeigmaEntryRequest> Entries { get; init; } = [];
+    }
+
+
+    public sealed class YpodeigmaEntryRequest
+    {
+        public int MonadaOrgUnitId { get; init; }
+
+        public int? MoiraOrgUnitId { get; init; }
+
+        public int StoixeioKostousId { get; init; }
+
+        public decimal Value { get; init; }
+
+        public string? EntryComment { get; init; }
+    }
+
+
+    public enum SubmissionSaveAction
+    {
+        SaveDraft = 1,
+        Submit = 2
+    }
+]
+
+
