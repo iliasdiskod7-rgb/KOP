@@ -64,6 +64,7 @@ const EMPTY_CONTROLS_OPTIONS: YpodeigmaControlsOptions = {
   monades: [],
   moires: [],
   etoi: [],
+  canStartNewYear: false,
 };
 
 function getFirstMonadaId(options: YpodeigmaControlsOptions): string | null {
@@ -594,6 +595,15 @@ export default function DynamicForm({ id, role }: DynamicFormProps) {
 
   const handleStartNewYear = useCallback(async () => {
     if (role === 'admin') {
+      return;
+    }
+
+    if (!controlsOptions.canStartNewYear) {
+      setActionMessage({
+        type: 'error',
+        title: 'Η δημιουργία νέου έτους δεν είναι διαθέσιμη.',
+        description: 'Δεν έχετε δικαίωμα επεξεργασίας για το συγκεκριμένο Υπόδειγμα.',
+      });
       return;
     }
 

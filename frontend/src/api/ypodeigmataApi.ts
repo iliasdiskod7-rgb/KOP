@@ -1,10 +1,15 @@
 import { apiGet, apiPost } from './httpClient';
 import type {
   MonadaDto,
+  StoixeioKostousDto,
   YpodeigmaSubmissionRequest,
   YpodeigmaSubmissionRequestResult,
   YpodeigmaSubmissionResponse,
 } from './types';
+
+export function getStoixeiaKostous(ypodeigmaId: number): Promise<StoixeioKostousDto[]> {
+  return apiGet<StoixeioKostousDto[]>(`/api/ypodeigma/${ypodeigmaId}/stoixeiaKostous`);
+}
 
 function buildResponsibleOrgUnitQuery(responsibleOrgUnitIds: number[]) {
   const searchParams = new URLSearchParams();

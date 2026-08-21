@@ -85,6 +85,7 @@ export default function YpodeigmaControlsPanel({
     [options.moires, value.monadaId],
   );
   const hasSelectedYear = value.etos !== null;
+  const canShowNewYear = role !== 'admin' && options.canStartNewYear;
 
   const handleMonadaChange = (nextMonadaId: string) => {
     const normalizedMonadaId = nextMonadaId || null;
@@ -110,8 +111,8 @@ export default function YpodeigmaControlsPanel({
           </div>
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-2">
-          <div className="space-y-2 xl:border-r xl:border-slate-200 xl:pr-3">
+        <div className={`grid gap-3 ${canShowNewYear ? 'xl:grid-cols-2' : ''}`}>
+          <div className={`space-y-2 ${canShowNewYear ? 'xl:border-r xl:border-slate-200 xl:pr-3' : ''}`}>
             <div>
               <h3 className="text-sm font-bold text-sky-700">Ανάκτηση δεδομένων παρελθοντικών ετών</h3>
             </div>
@@ -167,7 +168,7 @@ export default function YpodeigmaControlsPanel({
             </p>
           </div>
 
-          {role !== 'admin' ? (
+          {canShowNewYear ? (
             <div className="space-y-2">
               <div>
                 <h3 className="text-sm font-bold text-sky-700">Καταχώρηση δεδομένων για νέο έτος</h3>
@@ -208,9 +209,7 @@ export default function YpodeigmaControlsPanel({
                 Δημιουργεί νέους πίνακες καταχώρησης δεδομένων.
               </p>
             </div>
-          ) : (
-            <div className="hidden xl:block" />
-          )}
+          ) : null}
         </div>
       </div>
 

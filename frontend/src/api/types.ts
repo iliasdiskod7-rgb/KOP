@@ -44,6 +44,14 @@ export type MonadaDto = {
   moires: MonadaDto[];
 };
 
+export type StoixeioKostousDto = {
+  id: number;
+  kodikos: string;
+  epipedoAnalysis: number;
+  onomasia: string;
+  einaiXamiloteroEpipedo: boolean;
+};
+
 export type YpodeigmaEntryDto = {
   id: number;
   monadaId: number;

@@ -26,6 +26,7 @@ export type YpodeigmaControlsOptions = {
   monades: OrgUnitOption[];
   moires: OrgUnitOption[];
   etoi: EtosOption[];
+  canStartNewYear: boolean;
 };
 
 export type ActionMessage = {

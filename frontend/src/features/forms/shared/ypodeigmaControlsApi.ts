@@ -44,9 +44,7 @@ export async function fetchYpodeigmaControlsOptions(
   const responsibleOrgUnitIds = allowedYpodeigma.responsibleOrgUnits.map(
     (orgUnit) => orgUnit.orgUnitId,
   );
-  const canEdit = allowedYpodeigma.responsibleOrgUnits.some(
-    (orgUnit) => orgUnit.canEdit || orgUnit.canSubmit,
-  );
+  const canEdit = allowedYpodeigma.responsibleOrgUnits.some((orgUnit) => orgUnit.canEdit);
   const [years, subjectOrgUnits] = await Promise.all([
     getKatagegrammenaEti(ypodeigmaId, responsibleOrgUnitIds),
     getSubjectOrgUnits(ypodeigmaId, responsibleOrgUnitIds),
@@ -55,6 +53,7 @@ export async function fetchYpodeigmaControlsOptions(
 
   return {
     ...orgUnitOptions,
+    canStartNewYear: canEdit,
     etoi: [...years]
       .sort((left, right) => left - right)
       .map((year) => ({

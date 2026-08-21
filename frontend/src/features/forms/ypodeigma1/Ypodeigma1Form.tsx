@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { canUseAuthenticatedApi } from '../../../api/httpClient';
 import { upsertYpodeigma2Submission } from '../ypodeigma2/submissionStorage';
 import { buildYpodeigma1SavePayload } from './buildYpodeigma1SavePayload';
 import { calculateLeafGrandTotal, isLeafRow, parseYpodeigma1Amount } from './helpers';
-import { fetchYpodeigma1ForMoira } from './mockYpodeigma1Api';
+import { fetchYpodeigma1ForMoira, saveYpodeigma1Submission } from './ypodeigma1Api';
 import type {
   Ypodeigma1CacheByMoira,
   Ypodeigma1FormActions,
@@ -116,6 +117,7 @@ export default function Ypodeigma1Form({
   const [cacheByMoira, setCacheByMoira] = useState<Ypodeigma1CacheByMoira>({});
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMoiraId, setLoadingMoiraId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const previousSelectionRef = useRef<string>('');
 
   useEffect(() => {
@@ -144,11 +146,14 @@ export default function Ypodeigma1Form({
     const loadMoiraData = async () => {
       setIsLoading(true);
       setLoadingMoiraId(selectedMoiraId);
+      setLoadError(null);
 
       try {
         const response = await fetchYpodeigma1ForMoira({
           monadaId: selectedMonadaId,
+          monadaLabel: selectedMonadaLabel,
           moiraId: selectedMoiraId,
+          moiraLabel: selectedMoiraLabel,
           etos: selectedEtos,
           etosStatus: selectedEtosStatus,
           etosSource: selectedEtosSource,
@@ -161,6 +166,7 @@ export default function Ypodeigma1Form({
         setCacheByMoira((currentCache) => ({
           ...currentCache,
           [selectedMoiraId]: {
+            responsibleOrgUnitId: response.responsibleOrgUnitId,
             monadaId: response.monadaId,
             monadaLabel: response.monadaLabel,
             moiraId: response.moiraId,
@@ -172,6 +178,12 @@ export default function Ypodeigma1Form({
             table1CRows: response.table1CRows,
           },
         }));
+      } catch (error) {
+        if (isMounted) {
+          setLoadError(
+            error instanceof Error ? error.message : 'Η φόρτωση του Υποδείγματος 1 απέτυχε.',
+          );
+        }
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -185,7 +197,16 @@ export default function Ypodeigma1Form({
     return () => {
       isMounted = false;
     };
-  }, [cacheByMoira, selectedEtos, selectedEtosSource, selectedEtosStatus, selectedMonadaId, selectedMoiraId]);
+  }, [
+    cacheByMoira,
+    selectedEtos,
+    selectedEtosSource,
+    selectedEtosStatus,
+    selectedMonadaId,
+    selectedMonadaLabel,
+    selectedMoiraId,
+    selectedMoiraLabel,
+  ]);
 
   const currentEntry = useMemo(
     () => getCurrentEntry(cacheByMoira, selectedMoiraId),
@@ -195,70 +216,70 @@ export default function Ypodeigma1Form({
   const totalAmount = calculateGrandTotal(currentEntry);
   const rowCount = calculateRowCount(currentEntry);
 
+  const persistSubmission = useCallback(
+    async (action: 'SaveDraft' | 'Submit', localStatus: 'pending-submission' | 'submitted') => {
+      if (!currentEntry || !isEditable) {
+        throw new Error('Η συγκεκριμένη εγγραφή είναι διαθέσιμη μόνο για προβολή.');
+      }
+
+      if (canUseAuthenticatedApi()) {
+        await saveYpodeigma1Submission(currentEntry, action);
+      }
+
+      const payload = buildYpodeigma1SavePayload({
+        monadaId: selectedMonadaId,
+        etos: selectedEtos,
+        cacheByMoira,
+      });
+
+      // Προσωρινή προβολή μέχρι το MySubmissions να συνδεθεί με backend endpoint.
+      upsertYpodeigma2Submission({
+        id: `ypodeigma1-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
+        createdAt: new Date().toISOString(),
+        ypodeigmaLabel: 'Υπόδειγμα 1',
+        pterygaLabel: selectedMonadaLabel ?? selectedMonadaId,
+        etos: selectedEtos,
+        sectionId: 'Υπόδειγμα 1',
+        sectionTitle: currentEntry.moiraLabel ?? selectedMoiraLabel ?? selectedMoiraId ?? 'Χωρίς μοίρα',
+        totalAmount,
+        moiraCount: payload.moires.length,
+        rowCount,
+        status: localStatus,
+      });
+
+      onDirtyChange?.(false);
+    },
+    [
+      cacheByMoira,
+      currentEntry,
+      isEditable,
+      onDirtyChange,
+      rowCount,
+      selectedEtos,
+      selectedMonadaId,
+      selectedMonadaLabel,
+      selectedMoiraId,
+      selectedMoiraLabel,
+      totalAmount,
+    ],
+  );
+
   useEffect(() => {
     if (!onRegisterActions) {
       return;
     }
 
     onRegisterActions({
-      saveDraft: () => {
-        const payload = buildYpodeigma1SavePayload({
-          monadaId: selectedMonadaId,
-          etos: selectedEtos,
-          cacheByMoira,
-        });
-
-        upsertYpodeigma2Submission({
-          id: `ypodeigma1-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
-          createdAt: new Date().toISOString(),
-          ypodeigmaLabel: 'Υπόδειγμα 1',
-          pterygaLabel: selectedMonadaLabel ?? selectedMonadaId,
-          etos: selectedEtos,
-          sectionId: 'Υπόδειγμα 1',
-          sectionTitle: currentEntry?.moiraLabel ?? selectedMoiraLabel ?? selectedMoiraId ?? 'Χωρίς μοίρα',
-          totalAmount,
-          moiraCount: payload.moires.length,
-          rowCount,
-          status: 'pending-submission',
-        });
-      },
-      submitFinal: () => {
-        const payload = buildYpodeigma1SavePayload({
-          monadaId: selectedMonadaId,
-          etos: selectedEtos,
-          cacheByMoira,
-        });
-
-        upsertYpodeigma2Submission({
-          id: `ypodeigma1-${selectedEtos ?? 'unknown'}-${selectedMoiraId ?? 'unknown'}`,
-          createdAt: new Date().toISOString(),
-          ypodeigmaLabel: 'Υπόδειγμα 1',
-          pterygaLabel: selectedMonadaLabel ?? selectedMonadaId,
-          etos: selectedEtos,
-          sectionId: 'Υπόδειγμα 1',
-          sectionTitle: currentEntry?.moiraLabel ?? selectedMoiraLabel ?? selectedMoiraId ?? 'Χωρίς μοίρα',
-          totalAmount,
-          moiraCount: payload.moires.length,
-          rowCount,
-          status: 'submitted',
-        });
-      },
+      saveDraft: () => persistSubmission('SaveDraft', 'pending-submission'),
+      submitFinal: () => persistSubmission('Submit', 'submitted'),
     });
 
     return () => {
       onRegisterActions(null);
     };
   }, [
-    cacheByMoira,
-    currentEntry,
     onRegisterActions,
-    rowCount,
-    selectedEtos,
-    selectedMonadaId,
-    selectedMonadaLabel,
-    selectedMoiraId,
-    selectedMoiraLabel,
-    totalAmount,
+    persistSubmission,
   ]);
 
   const handleTable1AAmountChange = (rowId: string, rawValue: string) => {
@@ -376,6 +397,15 @@ export default function Ypodeigma1Form({
           Φόρτωση στοιχείων για {selectedMonadaLabel ?? selectedMonadaId} / {selectedMoiraLabel ?? selectedMoiraId}
           ...
         </p>
+      </div>
+    );
+  }
+
+  if (loadError && !currentEntry) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800 shadow-sm">
+        <h1 className="text-xl font-bold">ΥΠΟΔΕΙΓΜΑ 1</h1>
+        <p className="mt-2 text-sm">{loadError}</p>
       </div>
     );
   }

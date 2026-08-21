@@ -7,9 +7,10 @@ import type { AppUserRole } from '../types/auth';
 interface LoginProps {
   onLogin: (username: string, password: string, mockRole: AppUserRole) => Promise<void>;
   usesBackend: boolean;
+  noticeMessage?: string | null;
 }
 
-export default function Login({ onLogin, usesBackend }: LoginProps) {
+export default function Login({ onLogin, usesBackend, noticeMessage }: LoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<AppUserRole>('user');
@@ -87,6 +88,15 @@ export default function Login({ onLogin, usesBackend }: LoginProps) {
                 <option value="user">Χρήστης</option>
                 <option value="admin">Admin</option>
               </select>
+            </div>
+          ) : null}
+
+          {noticeMessage ? (
+            <div
+              role="status"
+              className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+            >
+              {noticeMessage}
             </div>
           ) : null}
 

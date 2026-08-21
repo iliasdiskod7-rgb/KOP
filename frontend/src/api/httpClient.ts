@@ -3,6 +3,8 @@ import type { ApiProblemDetails } from './types';
 const ACCESS_TOKEN_STORAGE_KEY = 'kop-access-token';
 const AUTH_USER_STORAGE_KEY = 'kop-auth-user';
 
+export const AUTH_SESSION_EXPIRED_EVENT = 'kop-auth-session-expired';
+
 type StoredAuthUser = {
   accessToken?: unknown;
 };
@@ -78,6 +80,11 @@ export function storeAccessToken(accessToken: string) {
   localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, normalizedToken);
 }
 
+function notifyAuthenticationExpired() {
+  clearStoredAccessToken();
+  window.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
+}
+
 async function readProblemDetails(response: Response): Promise<ApiProblemDetails> {
   try {
     const problem = (await response.json()) as Partial<ApiProblemDetails>;
@@ -114,6 +121,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const token = authenticated ? getStoredAccessToken() : null;
 
   if (authenticated && !token) {
+    notifyAuthenticationExpired();
+
     throw new ApiError({
       status: 401,
       title: 'Unauthorized',
@@ -138,6 +147,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   });
 
   if (!response.ok) {
+    if (authenticated && response.status === 401) {
+      notifyAuthenticationExpired();
+    }
+
     throw new ApiError(await readProblemDetails(response));
   }
 

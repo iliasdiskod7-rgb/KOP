@@ -44,6 +44,7 @@ const MOCK_OPTIONS: YpodeigmaControlsOptions = {
     { value: 2025, label: '2025', status: 'editable' },
     { value: 2026, label: '2026', status: 'view' },
   ],
+  canStartNewYear: true,
 };
 
 const MOCK_STARTED_ETOS_RECORDS: MockStartedEtosRecord[] = [
@@ -58,6 +59,7 @@ function buildOptionsSnapshot(): YpodeigmaControlsOptions {
     monades: [...MOCK_OPTIONS.monades],
     moires: [...MOCK_OPTIONS.moires],
     etoi: [...MOCK_OPTIONS.etoi].sort((left, right) => left.value - right.value),
+    canStartNewYear: MOCK_OPTIONS.canStartNewYear,
   };
 }
 

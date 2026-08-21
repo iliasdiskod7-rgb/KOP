@@ -1,5 +1,6 @@
 export type Ypodeigma1TableARow = {
   id: string;
+  stoixeioKostousId?: number;
   code: string;
   title: string;
   amount: number | null;
@@ -8,6 +9,7 @@ export type Ypodeigma1TableARow = {
 
 export type Ypodeigma1TableBRow = {
   id: string;
+  stoixeioKostousId?: number;
   code: string;
   title: string;
   amount: number | null;
@@ -16,6 +18,7 @@ export type Ypodeigma1TableBRow = {
 
 export type Ypodeigma1TableCRow = {
   id: string;
+  stoixeioKostousId?: number;
   code: string;
   title: string;
   amount: number | null;
@@ -23,6 +26,7 @@ export type Ypodeigma1TableCRow = {
 };
 
 export type Ypodeigma1MoiraData = {
+  responsibleOrgUnitId: number | null;
   monadaId: string;
   monadaLabel: string;
   moiraId: string;
@@ -35,6 +39,7 @@ export type Ypodeigma1MoiraData = {
 };
 
 export type Ypodeigma1MoiraCacheEntry = {
+  responsibleOrgUnitId: number | null;
   monadaId: string;
   monadaLabel: string;
   moiraId: string;
@@ -50,7 +55,9 @@ export type Ypodeigma1CacheByMoira = Record<string, Ypodeigma1MoiraCacheEntry>;
 
 export type FetchYpodeigma1ForMoiraParams = {
   monadaId: string;
+  monadaLabel?: string | null;
   moiraId: string;
+  moiraLabel?: string | null;
   etos: number | null;
   etosStatus: 'editable' | 'view' | null;
   etosSource: 'existing' | 'new' | null;
@@ -69,6 +76,6 @@ export type Ypodeigma1SavePayload = {
 };
 
 export type Ypodeigma1FormActions = {
-  saveDraft: () => void;
-  submitFinal: () => void;
+  saveDraft: () => void | Promise<void>;
+  submitFinal: () => void | Promise<void>;
 };

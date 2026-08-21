@@ -144,6 +144,7 @@ export async function fetchYpodeigma1ForMoira({
       const status = isNewYear ? 'editable' : etosStatus ?? 'editable';
 
       resolve({
+        responsibleOrgUnitId: null,
         monadaId,
         monadaLabel: MONADA_LABELS[monadaId] ?? monadaId,
         moiraId,

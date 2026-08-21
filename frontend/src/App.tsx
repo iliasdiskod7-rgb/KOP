@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { clearAppInitCache, getAppInit } from './api/appApi';
 import { login } from './api/authApi';
 import {
+  AUTH_SESSION_EXPIRED_EVENT,
   canUseAuthenticatedApi,
   clearStoredAccessToken,
   getApiBaseUrl,
@@ -44,6 +45,11 @@ function readStoredUser(): AuthUser | null {
       return {
         username: parsedValue.username,
         role: parsedValue.role,
+        orgUnitId:
+          typeof parsedValue.orgUnitId === 'number' ? parsedValue.orgUnitId : undefined,
+        orgUnitTitle:
+          typeof parsedValue.orgUnitTitle === 'string' ? parsedValue.orgUnitTitle : undefined,
+        epistasia: typeof parsedValue.epistasia === 'string' ? parsedValue.epistasia : undefined,
       };
     }
   } catch {
@@ -57,10 +63,26 @@ function readStoredUser(): AuthUser | null {
 
 export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => readStoredUser());
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
   const usesBackend = Boolean(getApiBaseUrl());
   const hasBackendSession = !usesBackend || Boolean(getStoredAccessToken());
   const isLoggedIn =
     authUser !== null && authUser.username.trim() !== '' && hasBackendSession;
+
+  useEffect(() => {
+    const handleExpiredSession = () => {
+      clearStoredAccessToken();
+      clearAppInitCache();
+      setAuthUser(null);
+      setLoginNotice('Η συνεδρία σας έληξε. Συνδεθείτε ξανά για να συνεχίσετε.');
+    };
+
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleExpiredSession);
+
+    return () => {
+      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleExpiredSession);
+    };
+  }, []);
 
   useEffect(() => {
     if (!canUseAuthenticatedApi()) {
@@ -78,6 +100,9 @@ export default function App() {
         setAuthUser({
           username: appInit.userInfo.fullName,
           role: mapBackendRolesToAppRole(appInit.userRoles),
+          orgUnitId: appInit.userInfo.orgUnitId,
+          orgUnitTitle: appInit.userInfo.orgUnitTitle,
+          epistasia: appInit.userInfo.epistasia,
         });
       })
       .catch((error: unknown) => {
@@ -102,6 +127,8 @@ export default function App() {
   }, [authUser]);
 
   const handleLogin = async (username: string, password: string, mockRole: AppUserRole) => {
+    setLoginNotice(null);
+
     if (!getApiBaseUrl()) {
       setAuthUser({ username, role: mockRole });
       return;
@@ -116,6 +143,9 @@ export default function App() {
       setAuthUser({
         username: appInit.userInfo.fullName,
         role: mapBackendRolesToAppRole(appInit.userRoles),
+        orgUnitId: appInit.userInfo.orgUnitId,
+        orgUnitTitle: appInit.userInfo.orgUnitTitle,
+        epistasia: appInit.userInfo.epistasia,
       });
     } catch (error: unknown) {
       clearStoredAccessToken();
@@ -128,6 +158,7 @@ export default function App() {
     clearStoredAccessToken();
     clearAppInitCache();
     setAuthUser(null);
+    setLoginNotice(null);
   };
 
   return (
@@ -139,7 +170,11 @@ export default function App() {
             isLoggedIn ? (
               <Navigate to="/dashboard/ypologismos" replace />
             ) : (
-              <Login onLogin={handleLogin} usesBackend={usesBackend} />
+              <Login
+                onLogin={handleLogin}
+                usesBackend={usesBackend}
+                noticeMessage={loginNotice}
+              />
             )
           }
         />
@@ -147,7 +182,14 @@ export default function App() {
           path="/dashboard/*"
           element={
             isLoggedIn && authUser ? (
-              <Dashboard username={authUser.username} role={authUser.role} onLogout={handleLogout} />
+              <Dashboard
+                username={authUser.username}
+                role={authUser.role}
+                orgUnitId={authUser.orgUnitId}
+                orgUnitTitle={authUser.orgUnitTitle}
+                epistasia={authUser.epistasia}
+                onLogout={handleLogout}
+              />
             ) : (
               <Navigate to="/" replace />
             )
